@@ -8,10 +8,10 @@ shader_type canvas_item;
 group_uniforms clouds;
 uniform bool cloud_shadows_enabled = true; // Toggle cloud shadow effect
 uniform sampler2D cloud_noise; // Noise for cloud simulation
-uniform float cloud_scale = 1.0; // Scale of cloud noise
-uniform float cloud_speed = 1.0; // Speed of cloud movement
-uniform float cloud_contrast = 1.0; // Steepness of noise pattern
-uniform float cloud_threshold = 0.0; // Brightness of noise pattern
+uniform float cloud_scale = 2000.0; // Scale of cloud noise (pixel-space — ~50x larger than 3D equivalent)
+uniform float cloud_speed = 0.01; // Speed of cloud movement (UV-space scroll rate, matches 3D)
+uniform float cloud_contrast = 3.845; // Steepness of noise pattern
+uniform float cloud_threshold = 0.27; // Brightness of noise pattern
 uniform vec2 cloud_direction = vec2(1.0, 0.0); // Direction of cloud movement
 uniform float cloud_shadow_min : hint_range(0.0, 1.0, 0.001) = 0.2; // Minimum light value clouds can cast
 uniform float cloud_diverge_angle : hint_range(0.0, 45.0, 0.001) = 10.0; // Angle at which the two noises split from each other
@@ -20,6 +20,7 @@ uniform float cloud_diverge_angle : hint_range(0.0, 45.0, 0.001) = 10.0; // Angl
 
 group_uniforms colours_and_textures;
 uniform sampler2D albedo_texture : source_color, filter_nearest; // Sprite for main grass quad
+uniform vec4 albedo_texture_region; // Atlas region (x, y, w, h) in pixels; (0,0,0,0) = full texture
 uniform vec4 albedo1 : source_color = vec4(1.0); // Colour for main grass quad
 
 	group_uniforms colours_and_textures.albedo2;
@@ -37,6 +38,7 @@ uniform sampler2D albedo3_noise; // Noise pattern for grass patch 3
 	group_uniforms colours_and_textures.accent1;
 uniform float accent_frequency1 : hint_range(0.0, 0.05, 0.0001) = 0.001; // Frequency of accent grass 1
 uniform sampler2D accent_texture1 : source_color, filter_nearest; // Sprite for accent grass 1
+uniform vec4 accent_texture1_region; // Atlas region (x, y, w, h) in pixels; (0,0,0,0) = full texture
 uniform vec4 accent_albedo1 : source_color = vec4(1.0); // Colour for accent grass 1
 uniform float accent_height1 : hint_range(0.0, 1.0, 0.001) = 0.5; // Height for accent grass 1
 uniform float accent_scale1 : hint_range(0.0, 2.0, 0.001) = 1.0; // Scale (xy) for accent grass 1
@@ -44,6 +46,7 @@ uniform float accent_scale1 : hint_range(0.0, 2.0, 0.001) = 1.0; // Scale (xy) f
 	group_uniforms colours_and_textures.accent2;
 uniform float accent_probability2 : hint_range(0.0, 0.05, 0.0001) = 0.1; // Frequency of accent grass 2
 uniform sampler2D accent_texture2 : source_color, filter_nearest; // Sprite for accent grass 2
+uniform vec4 accent_texture2_region; // Atlas region (x, y, w, h) in pixels; (0,0,0,0) = full texture
 uniform vec4 accent_albedo2 : source_color = vec4(1.0); // Colour for accent grass 2
 uniform float accent_height2 : hint_range(0.0, 1.0, 0.001) = 0.5; // Height for accent grass 2
 uniform float accent_scale2 : hint_range(0.0, 2.0, 0.001) = 1.0; // Scale (xy) for accent grass 2
@@ -69,8 +72,6 @@ uniform bool view_space_sway = true; // Toggle viewspace oscillation
 uniform float view_sway_speed : hint_range(0.0, 5.0) = 0.1; // Speed of swaying in cycles per second
 uniform float view_sway_pixels : hint_range(0.0, 10.0, 0.1) = 2.0; // Maximum pixel offset from view sway
 
-group_uniforms grass_size;
-uniform float half_height = 12.0; // Half the grass sprite height in pixels
 
 varying float wind_noise_sample;
 varying vec2 world_origin; // Instance world position
@@ -85,14 +86,19 @@ float random(float n) {
 	return fract(sin(n * 12.9898) * 43758.5453);
 }
 
+vec2 atlas_uv(vec2 local_uv, vec4 region_px, sampler2D tex) {
+	if (region_px.z <= 0.0) return local_uv;
+	vec2 tex_size = vec2(textureSize(tex, 0));
+	return (region_px.xy + local_uv * region_px.zw) / tex_size;
+}
+
 void vertex() {
 	// Read accent seeds from INSTANCE_CUSTOM
 	id_seed1 = INSTANCE_CUSTOM.x;
 	id_seed2 = INSTANCE_CUSTOM.y;
 
-	// Compute height_factor from canonical quad coordinates BEFORE accent modifications
-	// 2D adaptation — 1.0 at top of sprite (VERTEX.y = -half_height), 0.0 at base (VERTEX.y = +half_height)
-	float height_factor = clamp((-VERTEX.y + half_height) / (2.0 * half_height), 0.0, 1.0);
+	// Shear factor from UV — UV.y=0 at base, UV.y=1 at top (bottom stays anchored)
+	float height_factor = UV.y;
 
 	//// Accent 1
 	// 2D adaptation — scale first, then offset upward (negative Y = up on screen)
@@ -175,7 +181,7 @@ void fragment() {
 	uv.x = clamp(uv.x, 0.0, 1.0);
 
 	// Sample albedo texture based on above calculation
-	vec4 albedo_tex = texture(albedo_texture, uv);
+	vec4 albedo_tex = texture(albedo_texture, atlas_uv(uv, albedo_texture_region, albedo_texture));
 
 	// 2D adaptation — sample colour variation noise using normalized world_origin
 	vec2 normalized_pos = world_origin / world_scale;
@@ -184,19 +190,19 @@ void fragment() {
 
 	vec3 final_color = albedo1.rgb * albedo_tex.rgb;
 	if (albedo2_noise_tex > albedo2_threshold) {
-		final_color = albedo2.rgb;
+		final_color = albedo2.rgb * albedo_tex.rgb;
 	} if (albedo3_noise_tex > albedo3_threshold) {
-		final_color = albedo3.rgb;
+		final_color = albedo3.rgb * albedo_tex.rgb;
 	}
 
 	// Accent 1
 	if (id_seed1 < accent_frequency1) {
-		albedo_tex = texture(accent_texture1, uv);
+		albedo_tex = texture(accent_texture1, atlas_uv(uv, accent_texture1_region, accent_texture1));
 		final_color = accent_albedo1.rgb * albedo_tex.rgb;
 	}
 	// Accent 2
 	else if (id_seed2 < accent_probability2) {
-		albedo_tex = texture(accent_texture2, uv);
+		albedo_tex = texture(accent_texture2, atlas_uv(uv, accent_texture2_region, accent_texture2));
 		final_color = accent_albedo2.rgb * albedo_tex.rgb;
 	}
 
@@ -204,7 +210,7 @@ void fragment() {
 
 	// Cloud shadows (2D adaptation — applied directly to COLOR)
 	if (cloud_shadows_enabled) {
-		COLOR.rgb *= get_cloud_noise_2d(world_origin / world_scale);
+		COLOR.rgb *= get_cloud_noise_2d(world_origin);
 	}
 
 	// Debug noise mode
