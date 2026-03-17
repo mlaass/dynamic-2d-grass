@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Godot 4.4 project (Forward Plus renderer) implementing a stylised 3D pixel-art grass system with wind animation, character-reactive displacement, hybrid toon shading, and world-space cloud shadows. Created by Dylearn.
+Godot 4.5 project (Forward Plus renderer) implementing a stylised 3D pixel-art grass system with wind animation, character-reactive displacement, hybrid toon shading, and world-space cloud shadows. Created by Dylearn.
 
 ## Running
 
-Open in Godot 4.4+. Main scene: `Scenes/Demo.tscn`. No build system — run directly from the Godot editor.
+Open in Godot 4.5+. Main scene: `Scenes/Demo.tscn`. No build system — run directly from the Godot editor.
 
 ## Architecture
 

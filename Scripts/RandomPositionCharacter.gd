@@ -59,24 +59,24 @@ func pick_new_target():
 
 # Get a random point in the bottom half of the camera's view
 func get_random_visible_ground_point() -> Vector3:
-	var viewport = get_viewport()
-	var screen_size = viewport.get_visible_rect().size
-	
-	for i in range(10): # Try a few times in case of bad rays
-		var screen_pos = Vector2(
-			randf() * screen_size.x,
-			lerp(screen_size.y * 0.5, screen_size.y, randf()) # Bottom half of screen
-		)
-		
-		var ray_origin = camera.project_ray_origin(screen_pos)
-		var ray_dir = camera.project_ray_normal(screen_pos)
-		
-		# Ray-plane intersection (y = 0)
-		if abs(ray_dir.y) > 0.001:
-			var t = -ray_origin.y / ray_dir.y
-			if t > 0.0:
-				var point = ray_origin + ray_dir * t
-				point.y = 0.0
-				return point
-	
-	return global_position
+  var viewport = get_viewport()
+  var screen_size = viewport.get_visible_rect().size
+  
+  for i in range(10): # Try a few times in case of bad rays
+    var screen_pos = Vector2(
+      randf() * screen_size.x,
+      lerp(screen_size.y * 0.5, screen_size.y, randf()) # Bottom half of screen
+    )
+    
+    var ray_origin = camera.project_ray_origin(screen_pos)
+    var ray_dir = camera.project_ray_normal(screen_pos)
+    
+    # Ray-plane intersection (y = 0)
+    if abs(ray_dir.y) > 0.001:
+      var t = -ray_origin.y / ray_dir.y
+      if t > 0.0:
+        var point = ray_origin + ray_dir * t
+        point.y = 0.0
+        return point
+  
+  return global_position

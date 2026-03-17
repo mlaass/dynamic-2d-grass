@@ -1,40 +1,45 @@
 63f7b34db8d8cdea90c76aacccf841ec
-::res://::1773583455
-CLAUDE.md::TextFile::-1::1773496860::0::1::::<><><>0<>0<><>::
+::res://::1773789926
+CLAUDE.md::TextFile::-1::1773789363::0::1::::<><><>0<>0<><>::
 LICENSE.txt::TextFile::-1::1773496775::0::1::::<><><>0<>0<><>::
 README.md::TextFile::-1::1773496775::0::1::::<><><>0<>0<><>::
-::res://docs/::1773499027
+::res://docs/::1773747460
 PRD-2D-Grass-System.md::TextFile::-1::1773499027::0::1::::<><><>0<>0<><>::
+PRD-Terrain-Data-Texture.md::TextFile::-1::1773747460::0::1::::<><><>0<>0<><>::
 ::res://Models/::1773496775
 WaterfowlKatana.glb::PackedScene/PackedScene::8284697101866296459::1773496775::1773496775::1::::<><><>0<>0<>c8636d7f2126f83b115b17afcb1ea75d<>res://.godot/imported/WaterfowlKatana.glb-5f712b81dcee5cab524337e0ee0155d3.scn::uid://d1ah4gagf4b1d::::res://Models/WaterfowlKatana_KatanaTexture.png
 WaterfowlKatana_KatanaTexture.png::CompressedTexture2D/CompressedTexture2D::8984649108061289331::1773496775::1773496775::1::::<><><>0<>0<>66dda9161562bd8921c0692e850ada1e<>res://.godot/imported/WaterfowlKatana_KatanaTexture.png-dccb2d8a460181ccd875995ee8ae7233.s3tc.ctex::
 WATERFOWLtextDetailed.glb::PackedScene/PackedScene::8192788881674307098::1773496775::1773496775::1::::<><><>0<>0<>dd56df15160ac973d32f6be7299af1ab<>res://.godot/imported/WATERFOWLtextDetailed.glb-a7c3b903fb597e303d1d9fc49b4e32df.scn::
-::res://Scenes/::1773583995
-Demo2D.tscn::PackedScene::8313065997151021993::1773583995::0::1::::<><><>0<>0<><>::uid://tcw5u1705qth::::res://Textures and Materials/Full.png<>uid://m8vofugsvfpf::::res://Scripts/2D/GrassSpawner.gd<>uid://c16p6csvftwt8::::res://Shaders/2D/Grass2D.gdshader<>uid://bvof17dwb6ocl::::res://Textures and Materials/leaves_02.tres<>uid://cl033w2c2pdo7::::res://Textures and Materials/leaves.png<>uid://bfsbl7phit5bs::::res://Textures and Materials/leaves_01.tres<>uid://b6fhxncxd7b1t::::res://Textures and Materials/WindNoise.tres<>uid://vqml4pj02ucs::::res://Textures and Materials/Albedo2Noise.tres<>uid://c52v6tkx73uro::::res://Textures and Materials/Albedo3Noise.tres<>uid://casvwu72ipf4y::::res://Textures and Materials/Cloud_Noise.tres<>uid://c3yu4xphem086::::res://Textures and Materials/char_ref.png
+::res://Scenes/::1773789986
+Demo2D.tscn::PackedScene::8313065997151021993::1773789986::0::1::::<><><>0<>0<><>::uid://tcw5u1705qth::::res://Textures and Materials/Full.png<>uid://m8vofugsvfpf::::res://Scripts/2D/GrassSpawner.gd<>uid://c16p6csvftwt8::::res://Shaders/2D/Grass2D.gdshader<>uid://bvof17dwb6ocl::::res://Textures and Materials/leaves_02.tres<>uid://cl033w2c2pdo7::::res://Textures and Materials/leaves.png<>uid://bfsbl7phit5bs::::res://Textures and Materials/leaves_01.tres<>uid://b6fhxncxd7b1t::::res://Textures and Materials/WindNoise.tres<>uid://vqml4pj02ucs::::res://Textures and Materials/Albedo2Noise.tres<>uid://c52v6tkx73uro::::res://Textures and Materials/Albedo3Noise.tres<>uid://casvwu72ipf4y::::res://Textures and Materials/Cloud_Noise.tres<>uid://c3yu4xphem086::::res://Textures and Materials/char_ref.png<>uid://caltyux021wi6::::res://Scripts/2D/DisplacementManager2D.gd<>uid://c3ydxtjmkdtrc::::res://Scripts/2D/GrassDisplacer2D.gd<>uid://cqgqycukx0rde::::res://Textures and Materials/grassleaf.png
 Demo.tscn::PackedScene::738302062184321598::1773496775::0::1::::<><><>0<>0<><>::uid://c7c170qbmedge::::res://Scripts/ShaderGlobals.gd<>uid://ddr7bfifk5nx2::::res://Scripts/LightDirection.gd<>uid://bimv0japa4qaw::::res://Shaders/Floor.gdshader<>uid://vqml4pj02ucs::::res://Textures and Materials/Albedo2Noise.tres<>uid://bvjdruuput33e::::res://Shaders/Grass.gdshader<>uid://cqgqycukx0rde::::res://Textures and Materials/grassleaf.png<>uid://c6mr82xyarp16::::res://Textures and Materials/accentleaf.png<>uid://c52v6tkx73uro::::res://Textures and Materials/Albedo3Noise.tres<>uid://b6fhxncxd7b1t::::res://Textures and Materials/WindNoise.tres<>uid://cw2eeqmautiwo::::res://Shaders/ToonShader.gdshader<>uid://hr2tvnkj2sjc::::res://Scripts/CharacterManager.gd<>uid://cgrshcf1wgao0::::res://Scenes/WATERFOWL.tscn<>uid://dbxs73kwcrap5::::res://Scripts/RandomPositionCharacter.gd
 WATERFOWL.tscn::PackedScene::5230174371442222341::1773496775::0::1::::<><><>0<>0<><>::uid://crwsrlgfy4fjb::::res://Shaders/Outline.gdshader<>uid://bimv0japa4qaw::::res://Shaders/Floor.gdshader<>uid://cw2eeqmautiwo::::res://Shaders/ToonShader.gdshader<>uid://d1ah4gagf4b1d::::res://Models/WaterfowlKatana_KatanaTexture.png
-::res://Scripts/::1773503446
+::res://Scripts/::1773789988
 CharacterManager.gd::GDScript::528090739714404452::1773503446::0::1::::<>Node<><>0<>1<><>::
 LightDirection.gd::GDScript::7406868008591769741::1773503446::0::1::::<>DirectionalLight3D<><>0<>1<><>::
-RandomPositionCharacter.gd::GDScript::7278083121440232324::1773503446::0::1::::<>CharacterBody3D<><>0<>1<><>::
+RandomPositionCharacter.gd::GDScript::7278083121440232324::1773789988::0::1::::<>CharacterBody3D<><>0<>1<><>::
 ShaderGlobals.gd::GDScript::7024650244390499292::1773503446::0::1::::<>Node<><>0<>1<><>::
-::res://Scripts/2D/::1773583930
+::res://Scripts/2D/::1773790075
+DisplacementManager2D.gd::GDScript::4796747091767658727::1773790075::0::1::::<>Node<><>0<>1<><>::
+GrassDisplacer2D.gd::GDScript::6787898291992276872::1773789727::0::1::::<>Node2D<><>0<>1<><>::
 GrassSpawner.gd::GDScript::911690941313462815::1773580730::0::1::::<>MultiMeshInstance2D<><>0<>1<><>::
-::res://Shaders/::1773583736
-clouds.gdshaderinc::ShaderInclude::6046024683278261577::1773583736::0::1::::<><><>0<>0<><>::
-Floor.gdshader::Shader::2974024140934636574::1773583736::0::1::::<><><>0<>0<><>::
-Grass.gdshader::Shader::3879179391425131108::1773583736::0::1::::<><><>0<>0<><>::
-Outline.gdshader::Shader::6012591871474320463::1773583736::0::1::::<><><>0<>0<><>::
-ToonShader.gdshader::Shader::6372984996867952754::1773583736::0::1::::<><><>0<>0<><>::
-::res://Shaders/2D/::1773583452
+::res://Shaders/::1773789988
+clouds.gdshaderinc::ShaderInclude::6046024683278261577::1773789988::0::1::::<><><>0<>0<><>::
+Floor.gdshader::Shader::2974024140934636574::1773789988::0::1::::<><><>0<>0<><>::
+Grass.gdshader::Shader::3879179391425131108::1773789988::0::1::::<><><>0<>0<><>::
+Outline.gdshader::Shader::6012591871474320463::1773789988::0::1::::<><><>0<>0<><>::
+ToonShader.gdshader::Shader::6372984996867952754::1773789988::0::1::::<><><>0<>0<><>::
+::res://Shaders/2D/::1773789430
 clouds2d.gdshaderinc::ShaderInclude::622645492557153321::1773499771::0::1::::<><><>0<>0<><>::
-Grass2D.gdshader::Shader::6662713260668224135::1773583452::0::1::::<><><>0<>0<><>::
-::res://Textures and Materials/::1773584252
+displacement_gradient.gdshader::Shader::6326218432196558827::1773789218::0::1::::<><><>0<>0<><>::
+Grass2D.gdshader::Shader::6662713260668224135::1773789238::0::1::::<><><>0<>0<><>::
+::res://Textures and Materials/::1773790207
 accentleaf.png::CompressedTexture2D/CompressedTexture2D::6974560628041906839::1773496775::1773496775::1::::<><><>0<>0<>7df097f7e7c721dc812d9f2becc08c00<>res://.godot/imported/accentleaf.png-c2bf394a0411c58447a53a6e92422de7.s3tc.ctex::
-Albedo2Noise.tres::NoiseTexture2D::1507745554902419950::1773583736::0::1::::<><><>0<>0<><>::
-Albedo3Noise.tres::NoiseTexture2D::6935576306826533728::1773583736::0::1::::<><><>0<>0<><>::
+Albedo2Noise.tres::NoiseTexture2D::1507745554902419950::1773789988::0::1::::<><><>0<>0<><>::
+Albedo3Noise.tres::NoiseTexture2D::6935576306826533728::1773789988::0::1::::<><><>0<>0<><>::
 char_ref.png::CompressedTexture2D::6788941414760129317::1773584245::1773584254::1::::<><><>0<>0<>06145e316bbd5797d63fd487951935c5<>res://.godot/imported/char_ref.png-1863fc0b62e77f4050fa4a7ea7a4ffc3.ctex::
 Cloud_Noise.tres::NoiseTexture2D::4811315612412069214::1773583452::0::1::::<><><>0<>0<><>::
+displace.png::CompressedTexture2D::6485552883315281994::1773790182::1773790211::1::::<><><>0<>0<>50138b88bbdf1c2ac1ce88f5a6aa062c<>res://.godot/imported/displace.png-26e1ae73186bbe12fc3d53e6cb114f0d.ctex::
 Full.png::CompressedTexture2D::1339107224409201869::1773506703::1773506705::1::::<><><>0<>0<>6d48083f2b6a8f68064c875e5bcdd312<>res://.godot/imported/Full.png-76e47305bb4efea2f734876aa6fdd720.ctex::
 grassleaf.png::CompressedTexture2D/CompressedTexture2D::5909263599485940774::1773496775::1773496775::1::::<><><>0<>0<>963b7f275511e8e344f800c57aeb7d95<>res://.godot/imported/grassleaf.png-073c2acd58af8809469e5b77e435f54c.s3tc.ctex::
 leaves.png::CompressedTexture2D::5598279366633818672::1773581020::1773581028::1::::<><><>0<>0<>670080d43c7428c022fbb3359134be83<>res://.godot/imported/leaves.png-c7e9c1063372bea94e1c44ca178d83e5.ctex::

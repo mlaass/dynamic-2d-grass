@@ -1,8 +1,10 @@
 res://Scenes/Demo2D.tscn
+res://Textures and Materials/Albedo2Noise.tres
+res://Textures and Materials/Albedo3Noise.tres
 res://Shaders/clouds.gdshaderinc
 res://Shaders/Floor.gdshader
-res://Textures and Materials/Albedo2Noise.tres
 res://Shaders/Grass.gdshader
-res://Textures and Materials/Albedo3Noise.tres
 res://Shaders/ToonShader.gdshader
 res://Shaders/Outline.gdshader
+res://Scripts/RandomPositionCharacter.gd
+res://Scripts/2D/DisplacementManager2D.gd

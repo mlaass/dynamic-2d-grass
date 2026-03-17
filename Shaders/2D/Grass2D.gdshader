@@ -72,6 +72,13 @@ uniform bool view_space_sway = true; // Toggle viewspace oscillation
 uniform float view_sway_speed : hint_range(0.0, 5.0) = 0.1; // Speed of swaying in cycles per second
 uniform float view_sway_pixels : hint_range(0.0, 10.0, 0.1) = 2.0; // Maximum pixel offset from view sway
 
+group_uniforms displacement;
+uniform bool displacement_enabled = false;
+uniform sampler2D terrain_data_texture : repeat_enable;
+uniform vec4 terrain_bounds;
+uniform float displacement_pixels : hint_range(0.0, 30.0, 0.1) = 12.0;
+uniform float displacement_y_factor : hint_range(0.0, 1.0, 0.01) = 0.3;
+
 
 varying float wind_noise_sample;
 varying vec2 world_origin; // Instance world position
@@ -159,6 +166,32 @@ void vertex() {
 	if (view_space_sway) {
 		float model_sway = sin((time + seed) * view_sway_speed * 2.0 * PI) * view_sway_pixels;
 		VERTEX.x += model_sway * height_factor;
+	}
+
+	// Character displacement via terrain data texture
+	if (displacement_enabled) {
+		vec2 bounds_min = terrain_bounds.xy;
+		vec2 bounds_size = terrain_bounds.zw - terrain_bounds.xy;
+		vec2 terrain_uv = (world_origin - bounds_min) / bounds_size;
+
+		if (terrain_uv.x >= 0.0 && terrain_uv.x <= 1.0 &&
+			terrain_uv.y >= 0.0 && terrain_uv.y <= 1.0) {
+
+			float strength = texture(terrain_data_texture, terrain_uv).r;
+
+			if (strength > 0.01) {
+				vec2 texel_size = 1.0 / vec2(textureSize(terrain_data_texture, 0));
+				float dx = texture(terrain_data_texture, terrain_uv + vec2(texel_size.x, 0.0)).r
+						  - texture(terrain_data_texture, terrain_uv - vec2(texel_size.x, 0.0)).r;
+				float dy = texture(terrain_data_texture, terrain_uv + vec2(0.0, texel_size.y)).r
+						  - texture(terrain_data_texture, terrain_uv - vec2(0.0, texel_size.y)).r;
+
+				vec2 push_dir = -normalize(vec2(dx, dy) + vec2(0.0001));
+
+				VERTEX.x += push_dir.x * strength * displacement_pixels * height_factor;
+				VERTEX.y += abs(push_dir.x) * strength * displacement_pixels * displacement_y_factor * height_factor;
+			}
+		}
 	}
 }
 

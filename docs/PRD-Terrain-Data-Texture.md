@@ -24,25 +24,26 @@ Demo2D (Node2D)
 │   └── ShaderMaterial (Grass2D.gdshader)
 │       └── samples terrain_data_texture
 │
-├── DisplacementViewport (SubViewport)          # NEW
-│   ├── DisplacementCamera (Camera2D)           # NEW — tracks grass bounds
-│   └── [displacement sprites rendered here]
+├── DisplacementManager2D (Node)                # NEW — manages viewport, bounds, material binding
+│   └── DisplacementViewport (SubViewport)      # NEW — owned by manager
+│       ├── DisplacementCamera (Camera2D)       # NEW — covers grass bounds
+│       └── [mirror sprites created by manager] # Sprite2D per displacer, additive blend
 │
 ├── Character (CharacterBody2D, group: "grass_displacers")
-│   └── DisplacementSprite (Sprite2D)           # NEW — radial gradient, rendered into SubViewport
-│       └── RemoteTransform2D → targets a mirror node inside DisplacementViewport
+│   └── exposes grass_displacement_radius: float
 │
-└── DisplacementManager2D (Node)                # NEW — manages viewport, bounds, material binding
+└── ... other displacers (group: "grass_displacers")
 ```
 
 ### Data Flow
 
-1. Each displacer node has a child **DisplacementSprite** — a white-to-black radial gradient
-2. These sprites are rendered into a **SubViewport** (not the main viewport)
-3. The SubViewport produces a texture where bright pixels = "something is pushing here"
-4. **Grass2D.gdshader** samples this texture at each blade's world position
-5. The shader derives push **direction** from the texture gradient (finite differences)
-6. The shader applies **shear** to `VERTEX.x` (and slight Y compression), anchored at the blade base
+1. DisplacementManager2D finds all nodes in the `"grass_displacers"` group at `_ready()`
+2. For each displacer, the manager creates a **mirror Sprite2D** inside the SubViewport — a radial gradient with **additive blend mode** (`CanvasItemMaterial`, `blend_mode = Add`)
+3. Each frame (`_process()`), the manager syncs each mirror sprite's position and scale to its source displacer
+4. The SubViewport produces a texture where bright pixels = "something is pushing here"; overlapping displacers **add** their contributions
+5. **Grass2D.gdshader** samples this texture at each blade's world position
+6. The shader derives push **direction** from the texture gradient (finite differences)
+7. The shader applies **shear** to `VERTEX.x` (and slight Y compression), anchored at the blade base
 
 ---
 
@@ -69,7 +70,7 @@ var viewport := SubViewport.new()
 viewport.size = Vector2i(512, 512)              # Configurable resolution
 viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 viewport.transparent_bg = true                  # Black background = no displacement
-viewport.canvas_cull_mask = 1 << displacement_layer  # Only see displacement sprites
+# No canvas_cull_mask needed — only mirror sprites live in this SubViewport's tree
 ```
 
 ### Resolution
@@ -96,7 +97,7 @@ The camera is static (set once from grass bounds). If the grass area is fixed (T
 The grass shader needs to convert `world_origin` (pixel coordinates) to a UV on the displacement texture:
 
 ```glsl
-uniform sampler2D terrain_data_texture;
+uniform sampler2D terrain_data_texture : repeat_enable;
 uniform vec4 terrain_bounds;  // (min_x, min_y, max_x, max_y) in world pixels
 
 vec2 terrain_uv = (world_origin - terrain_bounds.xy) / (terrain_bounds.zw - terrain_bounds.xy);
@@ -108,7 +109,7 @@ vec2 terrain_uv = (world_origin - terrain_bounds.xy) / (terrain_bounds.zw - terr
 
 ## Displacement Sprites
 
-Each node that should displace grass gets a child sprite rendered into the SubViewport.
+DisplacementManager2D creates a mirror sprite inside the SubViewport for each displacer.
 
 ### Sprite Design
 
@@ -118,29 +119,29 @@ A **radial gradient texture** — white center fading to black edge. This can be
 
 The sprite's **scale** controls the displacement radius. A character with a wide stance scales it larger; a small projectile keeps it small.
 
-### Rendering into SubViewport
+### Rendering into SubViewport (Mirror-Sprite Approach)
 
-The displacement sprites must render **only** into the SubViewport, not the main scene. Two approaches:
+SubViewports in Godot only render nodes that are **in their own scene tree** — visibility layers and cull masks cannot pull nodes from the main scene tree into a SubViewport. Therefore, displacement sprites must live inside the SubViewport as children.
 
-**Option A: CanvasLayer isolation**
-- Displacement sprites are on a specific `visibility_layer`
-- SubViewport's `canvas_cull_mask` includes only that layer
-- Main viewport's camera excludes that layer
+DisplacementManager2D creates a **mirror Sprite2D** inside the SubViewport for each displacer found in the `"grass_displacers"` group. Each frame, the manager syncs the mirror sprite's `position` and `scale` to match its source node. This keeps the displacement sprites invisible in the main viewport (they exist only in the SubViewport's tree) while tracking the displacers accurately.
 
-**Option B: RemoteTransform2D mirroring**
-- The actual sprite lives as a child of a Node2D inside the SubViewport
-- A `RemoteTransform2D` on the character mirrors its position to the sprite inside the viewport
-- Sprite is only in the SubViewport's scene tree, never in the main tree
+### Additive Blend Mode
 
-**Recommended: Option A** — less node overhead, sprites move with their parent automatically. The `visibility_layer` approach is cleaner.
+Godot's default blend mode is **alpha blend (mix)**, which means overlapping displacement sprites would **occlude** each other instead of combining. Each mirror sprite must use a `CanvasItemMaterial` with `blend_mode = Add` so overlapping displacers sum their contributions. This ensures two nearby characters produce a combined displacement field, not one hiding the other.
+
+```gdscript
+var mat := CanvasItemMaterial.new()
+mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+mirror_sprite.material = mat
+```
 
 ### Displacer Properties
 
 Each displacer exposes:
-- `grass_displacement_radius: float` — controls sprite scale (world pixels)
-- Sprite intensity can be modulated by `self_modulate.a` for partial displacement
+- `grass_displacement_radius: float` — controls mirror sprite scale (world pixels)
+- Sprite intensity can be modulated by adjusting the mirror sprite's `self_modulate.a` for partial displacement
 
-Displacers join the `"grass_displacers"` group. This group isn't strictly required for the SubViewport approach (sprites render regardless of group membership), but is useful for the manager to auto-configure sprites or validate setup.
+Displacers **must** be in the `"grass_displacers"` group — the manager discovers displacers via this group at `_ready()` and creates mirror sprites for them.
 
 ---
 
@@ -151,7 +152,7 @@ Displacers join the `"grass_displacers"` group. This group isn't strictly requir
 ```glsl
 group_uniforms displacement;
 uniform bool displacement_enabled = false;
-uniform sampler2D terrain_data_texture;          // SubViewport texture
+uniform sampler2D terrain_data_texture : repeat_enable;  // SubViewport texture — repeat_enable prevents edge clamping artifacts in finite difference samples
 uniform vec4 terrain_bounds;                     // (min_x, min_y, max_x, max_y)
 uniform float displacement_pixels : hint_range(0.0, 30.0, 0.1) = 12.0;  // Max shear in pixels
 uniform float displacement_y_factor : hint_range(0.0, 1.0, 0.01) = 0.3; // Vertical squish ratio
@@ -223,17 +224,19 @@ New `@tool` script that orchestrates the SubViewport system.
 ```gdscript
 @export var grass_spawner: MultiMeshInstance2D   # Reference to GrassSpawner
 @export var viewport_resolution: Vector2i = Vector2i(512, 512)
-@export var displacement_layer: int = 10         # CanvasItem visibility layer for displacement sprites
 @export var bounds_padding: float = 96.0         # Extra padding around grass bounds (pixels)
+@export var displacement_gradient: Texture2D     # Radial gradient texture for mirror sprites
 ```
 
 ### Responsibilities
 
 1. **Compute grass bounds** from the GrassSpawner's TileMapLayer (reuse existing cell iteration logic)
 2. **Create SubViewport** with Camera2D at runtime (`_ready()`)
-3. **Bind viewport texture** to the grass ShaderMaterial as `terrain_data_texture`
-4. **Set `terrain_bounds`** uniform on the grass material
-5. **Enable `displacement_enabled`** on the grass material
+3. **Find all `"grass_displacers"`** and create a mirror Sprite2D inside the SubViewport for each, with additive blend material
+4. **Sync mirror sprite positions** each frame in `_process()`
+5. **Bind viewport texture** to the grass ShaderMaterial as `terrain_data_texture`
+6. **Set `terrain_bounds`** uniform on the grass material
+7. **Enable `displacement_enabled`** on the grass material
 
 ### Bounds Computation
 
@@ -256,32 +259,57 @@ func _compute_grass_bounds() -> Rect2:
 ### Lifecycle
 
 ```gdscript
+var _mirror_sprites: Array[Dictionary] = []  # [{source: Node2D, mirror: Sprite2D}]
+var _viewport: SubViewport
+
 func _ready():
     var bounds = _compute_grass_bounds()
 
     # Create SubViewport
-    var viewport = SubViewport.new()
-    viewport.size = viewport_resolution
-    viewport.transparent_bg = true
-    viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-    # Only render displacement layer
-    viewport.canvas_cull_mask = 1 << displacement_layer
-    add_child(viewport)
+    _viewport = SubViewport.new()
+    _viewport.size = viewport_resolution
+    _viewport.transparent_bg = true
+    _viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+    add_child(_viewport)
 
     # Create Camera2D inside viewport
     var cam = Camera2D.new()
     cam.position = bounds.get_center()
-    cam.zoom = Vector2(viewport.size) / bounds.size
-    viewport.add_child(cam)
+    cam.zoom = Vector2(_viewport.size) / bounds.size
+    _viewport.add_child(cam)
+
+    # Create mirror sprites for all displacers
+    var additive_mat = CanvasItemMaterial.new()
+    additive_mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+
+    for displacer in get_tree().get_nodes_in_group("grass_displacers"):
+        var mirror = Sprite2D.new()
+        mirror.texture = displacement_gradient
+        mirror.material = additive_mat
+        mirror.position = displacer.global_position
+        var radius: float = displacer.grass_displacement_radius if "grass_displacement_radius" in displacer else 64.0
+        mirror.scale = Vector2(radius, radius) / (displacement_gradient.get_size() / 2.0)
+        _viewport.add_child(mirror)
+        _mirror_sprites.append({source = displacer, mirror = mirror})
 
     # Bind to grass material
     var mat = grass_spawner.material as ShaderMaterial
-    mat.set_shader_parameter("terrain_data_texture", viewport.get_texture())
+    mat.set_shader_parameter("terrain_data_texture", _viewport.get_texture())
     mat.set_shader_parameter("terrain_bounds", Vector4(
         bounds.position.x, bounds.position.y,
         bounds.end.x, bounds.end.y
     ))
     mat.set_shader_parameter("displacement_enabled", true)
+
+func _process(_delta: float):
+    for entry in _mirror_sprites:
+        var source: Node2D = entry.source
+        var mirror: Sprite2D = entry.mirror
+        mirror.position = source.global_position
+        # Optionally update scale if radius changes at runtime
+        if "grass_displacement_radius" in source:
+            var radius: float = source.grass_displacement_radius
+            mirror.scale = Vector2(radius, radius) / (displacement_gradient.get_size() / 2.0)
 ```
 
 ---
@@ -290,28 +318,20 @@ func _ready():
 
 To make any node displace grass:
 
-1. Add the node to the `"grass_displacers"` group (for discoverability, not strictly required)
-2. Add a child **Sprite2D** with:
-   - Texture: radial gradient (white center → black edge)
-   - `visibility_layer` set to `displacement_layer` (e.g. layer 10)
-   - `visibility_layer` for the main scene layers **cleared** (so it doesn't render in the main viewport)
-   - Scale controls displacement radius
-3. The sprite moves with its parent automatically
+1. Add the node to the `"grass_displacers"` group
+2. Expose a `grass_displacement_radius: float` property (world pixels)
+3. That's it — DisplacementManager2D handles the rest (creates the mirror sprite, syncs position each frame)
+
+No child sprites, no visibility layers, no special setup on the character side.
 
 ### Example: Adding Displacement to a Character
 
 ```gdscript
 # On any CharacterBody2D or Node2D:
+@export var grass_displacement_radius: float = 64.0
+
 func _ready():
     add_to_group("grass_displacers")
-
-    var displacement_sprite = Sprite2D.new()
-    displacement_sprite.texture = preload("res://Textures and Materials/displacement_gradient.png")
-    displacement_sprite.scale = Vector2(2.0, 2.0)  # Controls radius
-
-    # Only visible on displacement layer (e.g. layer 10), not main scene
-    displacement_sprite.visibility_layer = 1 << 10
-    add_child(displacement_sprite)
 ```
 
 ### Radial Gradient Texture
@@ -366,23 +386,24 @@ void fragment() {
 - **SubViewport overhead:** One extra render pass per frame, but only displacement sprites (minimal geometry). Negligible cost.
 - **Shader cost:** 3 texture samples per grass blade (center + 2 finite differences). All in vertex shader, not fragment. With thousands of blades this is cheap.
 - **Viewport resolution:** 512x512 is the sweet spot. Lower (256x256) is fine for large areas. Higher (1024x1024) only if precision matters.
-- **No per-frame script cost:** Once bound, the SubViewport renders automatically. No GDScript loop per character.
+- **Per-frame script cost:** DisplacementManager2D runs a `_process()` loop to sync mirror sprite positions — one `global_position` read + one `position` write per displacer per frame. Negligible for typical displacer counts (< 64). If profiling shows cost, the sync rate can be throttled (e.g. every 2nd frame).
 
 ---
 
 ## Known Limitations
 
 - **Direction at displacer center:** Finite differences produce near-zero gradient at the exact center. Grass there gets maximum strength but undefined direction. Acceptable — visually the grass is fully flattened.
-- **Overlapping displacers:** Sprites are additively blended in the viewport (default). Two overlapping circles will sum their R values. If R > 1.0 after blending, the shader clamps naturally. Direction derivation still works because the gradient reflects the combined field.
+- **Overlapping displacers:** Mirror sprites use explicit additive blend (`CanvasItemMaterial.BLEND_MODE_ADD`). Two overlapping circles will sum their R values. If R > 1.0 after blending, the shader clamps naturally. Direction derivation still works because the gradient reflects the combined field.
 - **Static bounds:** The Camera2D in the SubViewport is set once at `_ready()`. If the grass area changes at runtime (e.g. procedural generation), bounds must be recomputed.
+- **Edge clamping:** Finite difference samples at terrain texture edges would normally read clamped texels, producing incorrect gradient directions (grass leaning inward at bounds edges). The `repeat_enable` sampler hint prevents this. Since the bounds include padding, displacement strength is 0.0 at the edges anyway, so the wrapped samples have no visible effect.
 - **Y-sorting:** Not addressed in this system. Grass still renders as one layer. Separate future work.
 
 ---
 
 ## Verification
 
-1. Add a CharacterBody2D to Demo2D with a displacement sprite child (layer 10, radial gradient)
-2. Set `displacement_enabled = true` on the grass material
+1. Add a CharacterBody2D to Demo2D in the `"grass_displacers"` group with `grass_displacement_radius` property
+2. Add a DisplacementManager2D node and configure its `grass_spawner` and `displacement_gradient` exports
 3. Move the character around — grass should **shear away** from it, leaning outward
 4. Grass at the edge of the displacement radius should barely lean; grass at the center should lean fully
 5. Multiple characters should blend their displacement naturally (overlapping gradients)
