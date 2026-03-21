@@ -51,6 +51,11 @@ This project treats the "inferred Variant type" warning as a **parse error**. Ne
 - `Dictionary[key]` — returns `Variant`. Use explicit type: `var x: MyType = dict[key]`
 - `for x in [1.0, 2.0]:` — untyped array literals make `x` Variant. Use a typed array: `var arr: Array[float] = [1.0, 2.0]` then `for x in arr:`
 - `for key in dict:` / `for key in dict.keys():` — `key` is Variant. Acceptable for iteration but don't use `:=` on expressions derived from it without an explicit type annotation.
+- Method chains on `Variant` return `Variant`. E.g. `chunk_manager.get_chunk_map().size()` — even though `.size()` returns `int`, the receiver is `Variant`, so the result is `Variant`. Use explicit type: `var n: int = chunk_manager.get_chunk_map().size()`
+
+## Testing
+
+After any GDScript or shader change, run `timeout 10 godot45 --headless --path . --scene <scene>.tscn 2>&1` to verify no parse or runtime errors. Test with the scene you're actually modifying (e.g. `Scenes/Demo2D.tscn` for 2D grass work). Check for `SCRIPT ERROR`, `Parse Error`, and `Failed to load` in the output.
 
 ## Licensing
 

@@ -19,6 +19,7 @@ class ChunkData:
   var instance_count: int = 0
   var buffer: PackedFloat32Array
   var assigned_pool_idx: int = -1
+  var mask_mesh: ArrayMesh
 
 
 # -- Exports: placement --------------------------------------------------
@@ -125,8 +126,11 @@ class ChunkData:
 @export var min_zoom: float = 0.5
 @export var pool_size_override: int = 0
 
+@export var grass_nav_layer: int = 0
+
 @export_group("Debug")
 @export var debug_overlay: bool = false
+@export var debug_show_terrain: bool = false
 
 
 # -- Internal state -------------------------------------------------------
@@ -140,6 +144,7 @@ var _pool_free: Array[int] = []
 var _active_chunks: Dictionary = {}       # Vector2i -> pool_idx
 var _last_chunk_range: Rect2i = Rect2i()
 var _editor_preview_mmi: MultiMeshInstance2D = null
+var _debug_terrain_sprite: Sprite2D
 
 # Debug
 var _debug_canvas: CanvasLayer
@@ -206,8 +211,13 @@ func _ready() -> void:
   _shared_material = grass_material
   _sync_material()
   _rebuild()
-  if debug_overlay and not Engine.is_editor_hint():
-    _create_debug_overlay()
+  if not Engine.is_editor_hint():
+    _debug_terrain_sprite = Sprite2D.new()
+    _debug_terrain_sprite.modulate = Color(1, 1, 1, 0.8)
+    _debug_terrain_sprite.visible = false
+    add_child(_debug_terrain_sprite)
+    if debug_overlay:
+      _create_debug_overlay()
 
 
 func _process(_delta: float) -> void:
@@ -220,6 +230,28 @@ func _process(_delta: float) -> void:
     _debug_timing[_debug_timing_idx] = float(elapsed)
     _debug_timing_idx = (_debug_timing_idx + 1) % _DEBUG_HISTORY
     _debug_control.queue_redraw()
+
+  # Debug terrain texture overlay
+  if debug_show_terrain and _shared_material and _debug_terrain_sprite:
+    var tex_param = _shared_material.get_shader_parameter("terrain_data_texture")
+    var bounds_param = _shared_material.get_shader_parameter("terrain_bounds")
+    if tex_param is Texture2D and bounds_param is Vector4:
+      for key in _active_chunks:
+        _pool[_active_chunks[key]].visible = false
+      var tex: Texture2D = tex_param
+      var bounds: Vector4 = bounds_param
+      _debug_terrain_sprite.texture = tex
+      _debug_terrain_sprite.position = Vector2(
+        (bounds.x + bounds.z) / 2.0, (bounds.y + bounds.w) / 2.0)
+      var tex_size := Vector2(tex.get_size())
+      _debug_terrain_sprite.scale = Vector2(
+        (bounds.z - bounds.x) / tex_size.x,
+        (bounds.w - bounds.y) / tex_size.y)
+      _debug_terrain_sprite.visible = true
+    else:
+      _debug_terrain_sprite.visible = false
+  elif _debug_terrain_sprite:
+    _debug_terrain_sprite.visible = false
 
 
 func _get_configuration_warnings() -> PackedStringArray:
@@ -280,6 +312,7 @@ func _build_chunk_map() -> void:
 func _precompute_all_buffers() -> void:
   for key in _chunk_map:
     _precompute_chunk_buffer(_chunk_map[key])
+    _precompute_chunk_mask(_chunk_map[key])
 
 
 func _precompute_chunk_buffer(chunk: ChunkData) -> void:
@@ -325,6 +358,47 @@ func _precompute_chunk_buffer(chunk: ChunkData) -> void:
       write_idx += 12
 
   chunk.buffer = buf
+
+
+func _precompute_chunk_mask(chunk: ChunkData) -> void:
+  var verts := PackedVector2Array()
+  var tile_size_v := Vector2(_tile_size)
+  var half_tile := tile_size_v / 2.0
+
+  for cell in chunk.grass_cells:
+    var data := tile_map.get_cell_tile_data(cell)
+    if not data:
+      continue
+    var world_pos := tile_map.map_to_local(cell)
+    var nav_poly: NavigationPolygon = data.get_navigation_polygon(grass_nav_layer)
+
+    if nav_poly and nav_poly.get_polygon_count() > 0:
+      var nav_verts := nav_poly.get_vertices()
+      for poly_idx in nav_poly.get_polygon_count():
+        var indices := nav_poly.get_polygon(poly_idx)
+        for idx_i in indices.size():
+          var vi: int = indices[idx_i]
+          verts.append((nav_verts[vi] + world_pos).round())
+    else:
+      # Snap full-tile quad vertices to integer pixel positions
+      var tl := (world_pos + Vector2(-half_tile.x, -half_tile.y)).round()
+      var tr := (world_pos + Vector2( half_tile.x, -half_tile.y)).round()
+      var br := (world_pos + Vector2( half_tile.x,  half_tile.y)).round()
+      var bl := (world_pos + Vector2(-half_tile.x,  half_tile.y)).round()
+      verts.append_array(PackedVector2Array([tl, tr, br, tl, br, bl]))
+
+  if verts.is_empty():
+    return
+
+  var arrays: Array = []
+  arrays.resize(Mesh.ARRAY_MAX)
+  var v3 := PackedVector3Array()
+  v3.resize(verts.size())
+  for i in verts.size():
+    v3[i] = Vector3(verts[i].x, verts[i].y, 0.0)
+  arrays[Mesh.ARRAY_VERTEX] = v3
+  chunk.mask_mesh = ArrayMesh.new()
+  chunk.mask_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 
 
 # -- Pool management -------------------------------------------------------
@@ -445,6 +519,22 @@ func _deactivate_chunk(chunk_key: Vector2i) -> void:
   _pool_free.append(pool_idx)
   _active_chunks.erase(chunk_key)
   _chunk_map[chunk_key].assigned_pool_idx = -1
+
+
+func get_active_grass_cells() -> Array[Vector2i]:
+  var cells: Array[Vector2i] = []
+  for chunk_key in _active_chunks:
+    var chunk: ChunkData = _chunk_map[chunk_key]
+    cells.append_array(chunk.grass_cells)
+  return cells
+
+
+func get_chunk_map() -> Dictionary:
+  return _chunk_map
+
+
+func get_active_chunk_keys() -> Array:
+  return _active_chunks.keys()
 
 
 # -- Editor preview --------------------------------------------------------
@@ -595,7 +685,6 @@ func _debug_draw() -> void:
     else:
       color = Color(0.9, 0.3, 0.2)
     _debug_control.draw_rect(Rect2(bx, graph_y + graph_h - h, maxf(bar_w - 0.5, 1.0), h), color)
-
 
 
 static func _fmt_num(n: int) -> String:

@@ -74,7 +74,7 @@ uniform float view_sway_pixels : hint_range(0.0, 10.0, 0.1) = 2.0; // Maximum pi
 
 group_uniforms displacement;
 uniform bool displacement_enabled = false;
-uniform sampler2D terrain_data_texture;
+uniform sampler2D terrain_data_texture : filter_nearest;
 uniform vec4 terrain_bounds;
 uniform float displacement_pixels : hint_range(0.0, 30.0, 0.1) = 12.0;
 uniform float displacement_y_factor : hint_range(0.0, 1.0, 0.01) = 0.3;
@@ -191,6 +191,13 @@ void vertex() {
 				VERTEX.x += push_dir.x * strength * displacement_pixels * height_factor;
 				VERTEX.y += abs(push_dir.x) * strength * displacement_pixels * displacement_y_factor * height_factor;
 			}
+
+			// G channel: grass coverage mask
+			float grass_density = texture(terrain_data_texture, terrain_uv).g;
+			VERTEX *= grass_density;
+		} else {
+			// Outside terrain bounds — hide blade
+			VERTEX *= 0.0;
 		}
 	}
 }

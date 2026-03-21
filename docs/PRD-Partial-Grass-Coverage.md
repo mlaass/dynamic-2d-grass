@@ -85,88 +85,112 @@ Tiles with `is_grass=true` but **no navigation polygon** on the grass coverage l
 
 ## Rendering into G Channel
 
-### GrassMaskControl
+### Chunked ArrayMesh Approach
 
-A `Control` node added as a child of the displacement SubViewport. It renders **before** the displacement sprites (earlier in node order = drawn first).
+Each chunk gets one pre-built `ArrayMesh` containing all grass coverage triangles for its cells — merged into a single surface. A pool of `MeshInstance2D` nodes inside the SubViewport activates/deactivates alongside the grass chunks. This gives ~16 draw calls total (one per active chunk).
 
-```gdscript
-# Created by DisplacementManager2D in _ready()
-var _mask_control: Control
+### Mesh Pre-Computation
 
-func _create_grass_mask() -> void:
-    _mask_control = Control.new()
-    _mask_control.set_anchors_preset(Control.PRESET_FULL_RECT)
-    _mask_control.mouse_filter = Control.MOUSE_FILTER_IGNORE
-    _mask_control.connect("draw", _draw_grass_mask)
-    _viewport.add_child(_mask_control)
-    # Move to front of children so it renders BEFORE displacement sprites
-    _viewport.move_child(_mask_control, 0)
-```
-
-### Drawing Logic
-
-Each frame, `_draw_grass_mask()` iterates visible grass tiles and draws their navigation polygons as green filled triangles:
+At startup, `GrassChunkManager2D` pre-builds a mask `ArrayMesh` per chunk alongside the grass MultiMesh buffer:
 
 ```gdscript
-func _draw_grass_mask() -> void:
-    var tile_map: TileMapLayer = chunk_manager.tile_map
-    var tile_size := Vector2(tile_map.tile_set.tile_size)
+func _precompute_chunk_mask(chunk: ChunkData) -> void:
+    var verts := PackedVector2Array()
+    var tile_size := Vector2(_tile_size)
     var half_tile := tile_size / 2.0
-    var green := Color(0, 1, 0, 1)
-    var green_arr := PackedColorArray([green])
 
-    for cell in _get_visible_grass_cells():
+    for cell in chunk.grass_cells:
         var data := tile_map.get_cell_tile_data(cell)
         if not data:
             continue
-
         var world_pos := tile_map.map_to_local(cell)
         var nav_poly: NavigationPolygon = data.get_navigation_polygon(grass_nav_layer)
 
         if nav_poly and nav_poly.get_polygon_count() > 0:
-            # Tile has a custom grass coverage polygon
-            var verts := nav_poly.get_vertices()
+            # Triangulated nav polygon — append each triangle's 3 vertices
+            var nav_verts := nav_poly.get_vertices()
             for poly_idx in nav_poly.get_polygon_count():
                 var indices := nav_poly.get_polygon(poly_idx)
-                var tri := PackedVector2Array()
                 for idx_i in indices.size():
                     var vi: int = indices[idx_i]
-                    tri.append(verts[vi] + world_pos)
-                _mask_control.draw_colored_polygon(tri, green)
+                    verts.append(nav_verts[vi] + world_pos)
         else:
-            # No polygon — default to full tile coverage
-            var rect_verts := PackedVector2Array([
-                world_pos + Vector2(-half_tile.x, -half_tile.y),
-                world_pos + Vector2( half_tile.x, -half_tile.y),
-                world_pos + Vector2( half_tile.x,  half_tile.y),
-                world_pos + Vector2(-half_tile.x,  half_tile.y),
-            ])
-            _mask_control.draw_colored_polygon(rect_verts, green)
+            # Full-tile quad → 2 triangles
+            var tl := world_pos + Vector2(-half_tile.x, -half_tile.y)
+            var tr := world_pos + Vector2( half_tile.x, -half_tile.y)
+            var br := world_pos + Vector2( half_tile.x,  half_tile.y)
+            var bl := world_pos + Vector2(-half_tile.x,  half_tile.y)
+            verts.append_array(PackedVector2Array([tl, tr, br, tl, br, bl]))
+
+    if verts.is_empty():
+        return
+
+    # Build ArrayMesh with one triangle surface
+    var arrays := []
+    arrays.resize(Mesh.ARRAY_MAX)
+    # Convert 2D vertices to 3D (z=0) for ArrayMesh
+    var v3 := PackedVector3Array()
+    v3.resize(verts.size())
+    for i in verts.size():
+        v3[i] = Vector3(verts[i].x, verts[i].y, 0.0)
+    arrays[Mesh.ARRAY_VERTEX] = v3
+    chunk.mask_mesh = ArrayMesh.new()
+    chunk.mask_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 ```
 
-### Visible Cell Determination
+### Pool Management
 
-The mask only needs to draw cells within the SubViewport's coverage area (camera position ± world_size/2). This can reuse the active zone computation from `GrassChunkManager2D`, or simply iterate the chunk manager's active chunks:
+`DisplacementManager2D` maintains a pool of `MeshInstance2D` nodes inside the SubViewport. When a grass chunk activates, the corresponding mask `MeshInstance2D` is assigned the chunk's pre-built `ArrayMesh`. When it deactivates, the `MeshInstance2D` is hidden and returned to the pool.
+
+The mask pool mirrors the grass pool: same chunk keys, same activation/deactivation timing. `DisplacementManager2D` detects chunk changes by comparing active chunk keys each frame.
 
 ```gdscript
-func _get_visible_grass_cells() -> Array[Vector2i]:
-    return chunk_manager.get_active_grass_cells()
+# Pool of MeshInstance2D in the SubViewport
+var _mask_pool: Array[MeshInstance2D] = []
+var _mask_pool_free: Array[int] = []
+var _mask_active: Dictionary = {}  # chunk_key -> pool_idx
 ```
 
-This calls a new public method on `GrassChunkManager2D`:
+Each `MeshInstance2D` in the pool has:
+- Green modulate: `Color(0, 1, 0, 1)`
+- No material needed (just flat green vertex color via modulate)
+- Added as child of the SubViewport, before displacement sprites in tree order
+
+### Activation / Deactivation
 
 ```gdscript
-func get_active_grass_cells() -> Array[Vector2i]:
-    var cells: Array[Vector2i] = []
-    for chunk_key in _active_chunks:
-        var chunk: ChunkData = _chunk_map[chunk_key]
-        cells.append_array(chunk.grass_cells)
-    return cells
+func _activate_mask_chunk(chunk_key: Vector2i) -> void:
+    var chunk = chunk_manager.get_chunk_map()[chunk_key]
+    if not chunk.mask_mesh:
+        return
+    var pool_idx: int = _mask_pool_free.pop_back()
+    var mi := _mask_pool[pool_idx]
+    mi.mesh = chunk.mask_mesh
+    mi.visible = true
+    _mask_active[chunk_key] = pool_idx
+
+func _deactivate_mask_chunk(chunk_key: Vector2i) -> void:
+    var pool_idx: int = _mask_active[chunk_key]
+    _mask_pool[pool_idx].visible = false
+    _mask_pool_free.append(pool_idx)
+    _mask_active.erase(chunk_key)
 ```
 
-### Redraw Trigger
+### Chunk Change Detection
 
-`_mask_control.queue_redraw()` is called each frame in `DisplacementManager2D._process()` — the viewport already re-renders every frame for displacement tracking, so the grass mask redraws are free.
+In `_process()`, compare active grass chunks against active mask chunks:
+
+```gdscript
+var current_keys := chunk_manager.get_active_chunk_keys()
+# Deactivate mask chunks no longer active
+for key in _mask_active.keys():
+    if key not in current_keys:
+        _deactivate_mask_chunk(key)
+# Activate new mask chunks
+for key in current_keys:
+    if key not in _mask_active:
+        _activate_mask_chunk(key)
+```
 
 ---
 
@@ -280,9 +304,10 @@ At runtime with `debug_overlay` enabled on `GrassChunkManager2D`, the grass mask
 
 ### Rendering Cost
 
-- **Polygon count**: ~200-300 triangles per frame (2-4 triangles per tile × ~60-80 visible tiles)
-- **`draw_colored_polygon()`**: Batched by Godot's 2D renderer; flat-color fills are very cheap
-- **No texture sampling**: Polygons are solid green — no texture binds, no UV computation
+- **Draw calls**: ~16 per frame (one `MeshInstance2D` per active chunk) — same as the grass system
+- **Triangles**: ~200-300 total across all chunks (2 per full-tile cell, more for nav polygon cells)
+- **Pre-computed**: All `ArrayMesh` geometry is built once at startup; activation is just assigning a mesh reference
+- **No per-frame computation**: No polygon drawing, no TileData lookups, no array allocation at runtime
 - **Already in SubViewport**: No additional render passes; the displacement viewport already re-renders every frame
 
 ### Shader Cost
@@ -305,7 +330,7 @@ The SubViewport's Camera2D covers the viewport + `displacement_buffer` padding. 
 
 ### Smooth Transitions at Polygon Edges
 
-The G channel boundary between inside (1.0) and outside (0.0) is razor-sharp in a single `draw_colored_polygon()` call. However, the SubViewport texture is sampled with bilinear filtering, so blades near the polygon edge will see intermediate G values (0.0–1.0), producing a natural fade-out. The viewport resolution (512×512) controls how many world pixels this transition spans.
+The G channel boundary between inside (1.0) and outside (0.0) is razor-sharp at the mesh edge. However, the SubViewport texture is sampled with bilinear filtering, so blades near the polygon edge will see intermediate G values (0.0–1.0), producing a natural fade-out. The viewport resolution (512×512) controls how many world pixels this transition spans.
 
 ### Multiple Polygons per Tile
 
@@ -325,12 +350,60 @@ The `displacement_enabled` shader uniform controls both displacement (R channel)
 
 ---
 
+## Debug Terrain Overlay
+
+A world-space debug toggle that shows the terrain data texture mapped onto the world, replacing grass rendering. Useful for verifying mask coverage and displacement fields.
+
+### Configuration
+
+```gdscript
+# On GrassChunkManager2D:
+@export_group("Debug")
+@export var debug_show_terrain: bool = false
+```
+
+### Behaviour
+
+When `debug_show_terrain` is enabled:
+1. All grass pool `MultiMeshInstance2D` nodes are hidden
+2. A `Sprite2D` renders the terrain data viewport texture mapped to world space using `terrain_bounds`
+3. The sprite is semi-transparent (`modulate.a = 0.8`) so the tilemap is visible underneath
+4. R channel shows as red (displacement), G channel shows as green (grass coverage)
+
+When disabled, grass rendering resumes normally.
+
+### Implementation
+
+`GrassChunkManager2D` creates a `Sprite2D` at startup (hidden by default). In `_process()`, when the toggle is active:
+
+```gdscript
+if debug_show_terrain and _shared_material:
+    # Hide grass
+    for key in _active_chunks:
+        _pool[_active_chunks[key]].visible = false
+
+    # Update terrain debug sprite from shader parameters
+    var tex: Texture2D = _shared_material.get_shader_parameter("terrain_data_texture")
+    var bounds: Vector4 = _shared_material.get_shader_parameter("terrain_bounds")
+    if tex and bounds:
+        _debug_terrain_sprite.texture = tex
+        _debug_terrain_sprite.position = Vector2(
+            (bounds.x + bounds.z) / 2.0, (bounds.y + bounds.w) / 2.0)
+        var tex_size := Vector2(tex.get_size())
+        _debug_terrain_sprite.scale = Vector2(
+            (bounds.z - bounds.x) / tex_size.x,
+            (bounds.w - bounds.y) / tex_size.y)
+        _debug_terrain_sprite.visible = true
+```
+
+---
+
 ## Files Changed
 
 | File | Action | Notes |
 |------|--------|-------|
-| `Scripts/2D/DisplacementManager2D.gd` | **Modify** | Add GrassMaskControl, `grass_nav_layer` export, draw logic |
-| `Scripts/2D/GrassChunkManager2D.gd` | **Modify** | Add `get_active_grass_cells()` public method |
+| `Scripts/2D/GrassChunkManager2D.gd` | **Modify** | Add `mask_mesh` to ChunkData, pre-compute mask ArrayMeshes, add `debug_show_terrain` export + overlay, expose chunk data via public methods |
+| `Scripts/2D/DisplacementManager2D.gd` | **Modify** | Add mask MeshInstance2D pool in SubViewport, `grass_nav_layer` export, chunk-driven activation/deactivation. Remove old `draw_colored_polygon` approach |
 | `Shaders/2D/Grass2D.gdshader` | **Modify** | Sample G channel, scale VERTEX, add else clause for out-of-bounds |
 | `Scenes/Demo2D.tscn` | **Modify** | Add navigation layer to TileSet, draw test polygons on a few tiles |
 
@@ -338,11 +411,11 @@ The `displacement_enabled` shader uniform controls both displacement (R channel)
 
 ## Implementation Sequence
 
-1. **TileSet**: Add a navigation layer to the TileSet in Demo2D.tscn. Draw test polygons on 2-3 grass tiles (half-coverage, diagonal, L-shape).
-2. **Shader**: Add G channel sampling and `VERTEX *= grass_density` after the displacement block in Grass2D.gdshader.
-3. **DisplacementManager2D**: Add `GrassMaskControl` that renders navigation polygons as green fills into the SubViewport. Add `grass_nav_layer` export.
-4. **Test**: Run scene, verify partial grass tiles show grass only within the polygon area. Verify full-coverage tiles (no polygon) still have full grass. Verify displacement still works alongside the mask.
-5. **Tune**: Adjust viewport resolution if transitions are too sharp or too blurry.
+1. **GrassChunkManager2D**: Add `mask_mesh: ArrayMesh` to ChunkData. Pre-compute mask meshes during `_precompute_all_buffers()`. Add `debug_show_terrain` export and `Sprite2D` overlay.
+2. **DisplacementManager2D**: Replace `_mask_control` / `draw_colored_polygon` approach with a pool of `MeshInstance2D` nodes in the SubViewport. Add `grass_nav_layer` export. Activate/deactivate mask chunks by polling active chunk keys each frame.
+3. **Shader**: Add G channel sampling and `VERTEX *= grass_density` inside the existing displacement block. Add `else { VERTEX *= 0.0 }` for out-of-bounds.
+4. **TileSet** (in Godot editor): Add a navigation layer. Draw test polygons on 2-3 grass tiles.
+5. **Test**: Verify full-tile default coverage, partial tile coverage, displacement still works, debug overlay shows R/G channels mapped to world.
 
 ---
 
