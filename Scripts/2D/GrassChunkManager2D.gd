@@ -439,6 +439,9 @@ func _create_pool() -> void:
 func _get_active_zone() -> Rect2:
   var canvas_xform := get_viewport().get_canvas_transform()
   var viewport_size := get_viewport().get_visible_rect().size
+  var scale := canvas_xform.get_scale()
+  if absf(scale.x) < 0.0001 or absf(scale.y) < 0.0001:
+    return Rect2()
   var inv := canvas_xform.affine_inverse()
   var top_left := inv * Vector2.ZERO
   var bottom_right := inv * viewport_size
@@ -464,6 +467,8 @@ func _chunks_in_rect(rect: Rect2) -> Array[Vector2i]:
 
 func _update_visible_chunks() -> void:
   var active_zone := _get_active_zone()
+  if active_zone.size == Vector2.ZERO:
+    return
   var chunk_world_x := float(_tile_size.x * chunk_size)
   var chunk_world_y := float(_tile_size.y * chunk_size)
   var min_cx := floori(active_zone.position.x / chunk_world_x)

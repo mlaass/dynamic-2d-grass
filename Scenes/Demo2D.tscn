@@ -8,7 +8,7 @@
 [ext_resource type="Script" uid="uid://caltyux021wi6" path="res://Scripts/2D/DisplacementManager2D.gd" id="12_dispmgr"]
 [ext_resource type="Script" uid="uid://c3ydxtjmkdtrc" path="res://Scripts/2D/GrassDisplacer2D.gd" id="13_displacer"]
 [ext_resource type="Texture2D" uid="uid://cynwdxmamfira" path="res://Textures and Materials/displace.png" id="14_gb8of"]
-[ext_resource type="Material" path="res://Textures and Materials/grass_2d_material.tres" id="15_grass2dmat"]
+[ext_resource type="Material" uid="uid://t07xl7qay06s" path="res://Textures and Materials/grass_2d_material.tres" id="15_grass2dmat"]
 [ext_resource type="Script" uid="uid://d3tpm5015yat0" path="res://Scripts/2D/ZeldaCamera2D.gd" id="16_zeldacam"]
 
 [sub_resource type="NavigationPolygon" id="NavigationPolygon_u52jf"]
@@ -60,15 +60,15 @@ outlines = Array[PackedVector2Array]([PackedVector2Array(-8, 3.7770348, -2.42809
 agent_radius = 0.0
 
 [sub_resource type="NavigationPolygon" id="NavigationPolygon_ey5ve"]
-vertices = PackedVector2Array(8, 3.953125, 8, 8, -8, 8, -8, 3.7734375, 2.25, 3.7734375)
+vertices = PackedVector2Array(8, 3.953125, 8, 8, -8, 8, -8, 3.7734375, 4.140625, 3.234375)
 polygons = Array[PackedInt32Array]([PackedInt32Array(0, 1, 2, 3, 4)])
-outlines = Array[PackedVector2Array]([PackedVector2Array(-8, 3.7770348, 2.2482338, 3.7770348, 8, 3.956892, 8, 8, -8, 8)])
+outlines = Array[PackedVector2Array]([PackedVector2Array(-8, 3.7770348, 4.136751, 3.2374573, 8, 3.956892, 8, 8, -8, 8)])
 agent_radius = 0.0
 
 [sub_resource type="NavigationPolygon" id="NavigationPolygon_yxscc"]
-vertices = PackedVector2Array(-8, 8, -8, 2.3359375, -3.328125, 4.3203125, 8, 8, 3.6875, 1.6171875, 8, 3.953125)
+vertices = PackedVector2Array(-8, 8, -8, 2.3359375, -3.328125, 4.3203125, 8, 8, 4.140625, 2.515625, 8, 3.953125)
 polygons = Array[PackedInt32Array]([PackedInt32Array(0, 1, 2), PackedInt32Array(3, 0, 2, 4, 5)])
-outlines = Array[PackedVector2Array]([PackedVector2Array(-8, 2.3381634, -3.3273869, 4.3166103, 3.6871052, 1.6187286, 8, 3.956892, 8, 8, -8, 8)])
+outlines = Array[PackedVector2Array]([PackedVector2Array(-8, 2.3381634, -3.3273869, 4.3166103, 4.136751, 2.5180225, 8, 3.956892, 8, 8, -8, 8)])
 agent_radius = 0.0
 
 [sub_resource type="NavigationPolygon" id="NavigationPolygon_paf7g"]
@@ -423,8 +423,8 @@ extends Sprite2D
 func _process(delta):
 	if Engine.is_editor_hint(): return
 	var input = Vector2(
-		Input.get_axis(\"ui_left\", \"ui_right\"),
-		Input.get_axis(\"ui_up\", \"ui_down\"))
+		Input.get_axis(\"move_left\", \"move_right\"),
+		Input.get_axis(\"move_up\", \"move_down\"))
 	position += input * move_speed * delta
 "
 

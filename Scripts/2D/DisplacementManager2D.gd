@@ -25,6 +25,7 @@ var _default_texture: PlaceholderTexture2D
 var _additive_mat: CanvasItemMaterial
 var _grass_material: ShaderMaterial
 var _viewport_resolution: Vector2i
+var _fixed_world_size: Vector2
 
 # Mask pool — MeshInstance2D nodes in the SubViewport for green coverage meshes
 var _mask_pool: Array[MeshInstance2D] = []
@@ -44,6 +45,7 @@ func _ready() -> void:
   # Compute viewport resolution from screen size (matches screen pixels to avoid sub-pixel flicker)
   var screen_size := get_viewport().get_visible_rect().size
   _viewport_resolution = Vector2i(Vector2(screen_size) * viewport_scale)
+  _fixed_world_size = screen_size + Vector2(displacement_buffer * 2.0, displacement_buffer * 2.0)
 
   # Create SubViewport
   _viewport = SubViewport.new()
@@ -87,9 +89,8 @@ func _process(_delta: float) -> void:
   if not camera or not _internal_cam or not _grass_material:
     return
 
-  # Compute world-space coverage for the displacement viewport
-  var viewport_size := get_viewport().get_visible_rect().size
-  var world_size := viewport_size / camera.zoom + Vector2(displacement_buffer * 2.0, displacement_buffer * 2.0)
+  # Fixed world coverage — independent of game zoom to prevent texel grid flicker
+  var world_size := _fixed_world_size
 
   # Snap SubViewport camera to texel-aligned position (prevents sub-texel rasterization flicker)
   var texel_size := world_size / Vector2(_viewport_resolution)

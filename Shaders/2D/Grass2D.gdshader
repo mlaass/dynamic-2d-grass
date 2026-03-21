@@ -74,6 +74,8 @@ uniform float view_sway_pixels : hint_range(0.0, 10.0, 0.1) = 2.0; // Maximum pi
 
 group_uniforms displacement;
 uniform bool displacement_enabled = false;
+uniform bool debug_disable_mask = false;
+uniform bool debug_disable_density = false;
 uniform sampler2D terrain_data_texture : filter_nearest;
 uniform vec4 terrain_bounds;
 uniform float displacement_pixels : hint_range(0.0, 30.0, 0.1) = 12.0;
@@ -169,7 +171,7 @@ void vertex() {
 	}
 
 	// Character displacement via terrain data texture
-	if (displacement_enabled) {
+	if (displacement_enabled && !debug_disable_mask) {
 		vec2 bounds_min = terrain_bounds.xy;
 		vec2 bounds_size = terrain_bounds.zw - terrain_bounds.xy;
 		vec2 terrain_uv = (world_origin - bounds_min) / bounds_size;
@@ -193,11 +195,15 @@ void vertex() {
 			}
 
 			// G channel: grass coverage mask
-			float grass_density = texture(terrain_data_texture, terrain_uv).g;
-			VERTEX *= grass_density;
+			if (!debug_disable_density) {
+				float grass_density = texture(terrain_data_texture, terrain_uv).g;
+				VERTEX *= grass_density;
+			}
 		} else {
 			// Outside terrain bounds — hide blade
-			VERTEX *= 0.0;
+			if (!debug_disable_density) {
+				VERTEX *= 0.0;
+			}
 		}
 	}
 }
