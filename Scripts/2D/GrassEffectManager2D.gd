@@ -1,8 +1,9 @@
 # MIT License.
 # Made by Dylearn
 
-# Manages a SubViewport that renders displacement sprites and grass coverage
-# masks. Displacement sprites write to the R channel (character push).
+# Manages a SubViewport that renders effector sprites and grass coverage
+# masks.  Each effector's blend_mode controls how it composites into the
+# viewport (ADD for displacement, SUB for destruction, etc.).
 # Grass mask meshes write to the G channel (coverage area).
 # The viewport follows the game camera.
 
@@ -22,7 +23,6 @@ var _internal_cam: Camera2D
 var _mirror_sprites: Array[Dictionary] = []
 var _gradient_shader: Shader
 var _default_texture: PlaceholderTexture2D
-var _additive_mat: CanvasItemMaterial
 var _grass_material: ShaderMaterial
 var _viewport_resolution: Vector2i
 var _fixed_world_size: Vector2
@@ -58,24 +58,23 @@ func _ready() -> void:
   _internal_cam = Camera2D.new()
   _viewport.add_child(_internal_cam)
 
-  # Create mask MeshInstance2D pool (renders BEFORE displacement sprites)
+  # Create mask MeshInstance2D pool (renders BEFORE effector sprites)
   _create_mask_pool()
 
-  # Additive blend material for custom-texture displacers
-  _additive_mat = CanvasItemMaterial.new()
-  _additive_mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
-
-  # Default gradient shader + placeholder for displacers without a texture
+  # Default gradient shader + placeholder for effectors without a texture
   _gradient_shader = load("res://Shaders/2D/displacement_gradient.gdshader")
   _default_texture = PlaceholderTexture2D.new()
   _default_texture.size = Vector2(DEFAULT_SPRITE_SIZE, DEFAULT_SPRITE_SIZE)
 
-  # Defer displacer discovery so all nodes have finished _ready() and joined groups
+  # Defer effector discovery so all nodes have finished _ready() and joined groups
   await get_tree().process_frame
 
-  # Create mirror sprites for all displacers
-  for displacer in get_tree().get_nodes_in_group("grass_displacers"):
-    _add_mirror(displacer)
+  # Create mirror sprites for all effectors
+  for effector in get_tree().get_nodes_in_group("grass_effectors"):
+    _add_mirror(effector)
+
+  # Listen for effectors added at runtime (e.g. explosion craters)
+  get_tree().node_added.connect(_on_node_added)
 
   # Wait another frame so the viewport texture is valid
   await get_tree().process_frame
@@ -88,6 +87,12 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
   if not camera or not _internal_cam or not _grass_material:
     return
+
+  # Clean up mirrors whose source nodes have been freed
+  for i in range(_mirror_sprites.size() - 1, -1, -1):
+    if not is_instance_valid(_mirror_sprites[i].source):
+      _mirror_sprites[i].mirror.queue_free()
+      _mirror_sprites.remove_at(i)
 
   # Fixed world coverage — independent of game zoom to prevent texel grid flicker
   var world_size := _fixed_world_size
@@ -113,25 +118,27 @@ func _process(_delta: float) -> void:
   for entry in _mirror_sprites:
     var source: Node2D = entry.source
     var mirror: Sprite2D = entry.mirror
-    if not is_instance_valid(source):
-      continue
     mirror.position = source.global_position
-    if "displacement_radius" in source:
-      var radius: float = source.displacement_radius
+    if "effect_radius" in source:
+      var radius: float = source.effect_radius
       _apply_scale(mirror, entry.tex_size, radius)
 
 
-# -- Displacement sprites --------------------------------------------------
+# -- Effector sprites ------------------------------------------------------
 
-func _add_mirror(displacer: Node) -> void:
+func _add_mirror(effector: Node) -> void:
   var mirror := Sprite2D.new()
-  var tex: Texture2D = displacer.displacement_texture if "displacement_texture" in displacer else null
+  var tex: Texture2D = effector.effect_texture if "effect_texture" in effector else null
   var tex_size: float
+  var mode: CanvasItemMaterial.BlendMode = effector.blend_mode \
+      if "blend_mode" in effector else CanvasItemMaterial.BLEND_MODE_ADD
 
   if tex:
-    # Custom texture — use CanvasItemMaterial for additive blend
+    # Custom texture — use CanvasItemMaterial with the effector's blend mode
     mirror.texture = tex
-    mirror.material = _additive_mat
+    var mat := CanvasItemMaterial.new()
+    mat.blend_mode = mode
+    mirror.material = mat
     tex_size = tex.get_size().x
   else:
     # No texture — use procedural gradient shader (has blend_add built in)
@@ -141,11 +148,24 @@ func _add_mirror(displacer: Node) -> void:
     mirror.material = gradient_mat
     tex_size = DEFAULT_SPRITE_SIZE
 
-  mirror.position = displacer.global_position
-  var radius: float = displacer.displacement_radius if "displacement_radius" in displacer else 64.0
+  mirror.position = effector.global_position
+  var radius: float = effector.effect_radius if "effect_radius" in effector else 64.0
   _apply_scale(mirror, tex_size, radius)
   _viewport.add_child(mirror)
-  _mirror_sprites.append({source = displacer, mirror = mirror, tex_size = tex_size})
+  _mirror_sprites.append({source = effector, mirror = mirror, tex_size = tex_size})
+
+
+func _on_node_added(node: Node) -> void:
+  # Defer so _ready() has run and the node has joined its group
+  (func() -> void:
+    if not is_instance_valid(node) or not node.is_in_group("grass_effectors"):
+      return
+    # Skip if already mirrored
+    for entry in _mirror_sprites:
+      if entry.source == node:
+        return
+    _add_mirror(node)
+  ).call_deferred()
 
 
 func _apply_scale(mirror: Sprite2D, tex_size: float, radius: float) -> void:

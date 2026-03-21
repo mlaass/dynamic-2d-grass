@@ -8,7 +8,7 @@
 [ext_resource type="Texture2D" uid="uid://c52v6tkx73uro" path="res://Textures and Materials/Albedo3Noise.tres" id="6_albedo3"]
 
 [sub_resource type="ViewportTexture" id="ViewportTexture_qq72d"]
-viewport_path = NodePath("DisplacementManager2D/@SubViewport@21023")
+viewport_path = NodePath("GrassEffectManager2D/@SubViewport@28739")
 
 [resource]
 shader = ExtResource("1_shader")
@@ -61,6 +61,6 @@ shader_parameter/displacement_enabled = true
 shader_parameter/debug_disable_mask = false
 shader_parameter/debug_disable_density = false
 shader_parameter/terrain_data_texture = SubResource("ViewportTexture_qq72d")
-shader_parameter/terrain_bounds = Vector4(-129, -129, 129, 129)
+shader_parameter/terrain_bounds = Vector4(-724.5, -411.5, 724.5, 411.5)
 shader_parameter/displacement_pixels = 12.0
 shader_parameter/displacement_y_factor = 0.3

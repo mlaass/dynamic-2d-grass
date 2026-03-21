@@ -5,8 +5,8 @@
 [ext_resource type="Texture2D" uid="uid://bkrkawwtxd2t" path="res://Textures and Materials/leaves_02_out.tres" id="9_gb8of"]
 [ext_resource type="Texture2D" uid="uid://cha404mbace38" path="res://Textures and Materials/leaves_01_out.tres" id="10_gb8of"]
 [ext_resource type="Texture2D" uid="uid://c3yu4xphem086" path="res://Textures and Materials/char_ref.png" id="11_p6d2n"]
-[ext_resource type="Script" uid="uid://caltyux021wi6" path="res://Scripts/2D/DisplacementManager2D.gd" id="12_dispmgr"]
-[ext_resource type="Script" uid="uid://c3ydxtjmkdtrc" path="res://Scripts/2D/GrassDisplacer2D.gd" id="13_displacer"]
+[ext_resource type="Script" uid="uid://caltyux021wi6" path="res://Scripts/2D/GrassEffectManager2D.gd" id="12_dispmgr"]
+[ext_resource type="Script" uid="uid://c3ydxtjmkdtrc" path="res://Scripts/2D/GrassEffector2D.gd" id="13_displacer"]
 [ext_resource type="Texture2D" uid="uid://cynwdxmamfira" path="res://Textures and Materials/displace.png" id="14_gb8of"]
 [ext_resource type="Material" uid="uid://t07xl7qay06s" path="res://Textures and Materials/grass_2d_material.tres" id="15_grass2dmat"]
 [ext_resource type="Script" uid="uid://d3tpm5015yat0" path="res://Scripts/2D/ZeldaCamera2D.gd" id="16_zeldacam"]
@@ -449,7 +449,7 @@ accent_texture_1 = ExtResource("10_gb8of")
 accent_texture_2 = ExtResource("9_gb8of")
 debug_overlay = true
 
-[node name="DisplacementManager2D" type="Node" parent="." node_paths=PackedStringArray("chunk_manager", "camera")]
+[node name="GrassEffectManager2D" type="Node" parent="." node_paths=PackedStringArray("chunk_manager", "camera")]
 script = ExtResource("12_dispmgr")
 chunk_manager = NodePath("../GrassChunkManager2D")
 camera = NodePath("../Camera2D")
@@ -460,8 +460,8 @@ position = Vector2(204, 137)
 texture = ExtResource("11_p6d2n")
 script = SubResource("GDScript_mover")
 
-[node name="GrassDisplacer2D" type="Node2D" parent="Sprite2D"]
+[node name="GrassEffector2D" type="Node2D" parent="Sprite2D"]
 position = Vector2(0, 7)
 script = ExtResource("13_displacer")
-displacement_texture = ExtResource("14_gb8of")
-displacement_radius = 12.0
+effect_texture = ExtResource("14_gb8of")
+effect_radius = 12.0
