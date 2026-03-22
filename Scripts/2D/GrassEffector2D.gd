@@ -2,16 +2,19 @@
 # Made by Dylearn
 
 # Add as a child of any Node2D to affect grass in the SubViewport.
-# Provide an effect_texture for custom shapes, or leave empty for a
-# default radial falloff.  Set blend_mode to control how the texture
-# composites (ADD for displacement, SUB for destruction, etc.).
+# Set the Sprite2D texture for the effect shape and use the node's
+# transform (position, scale, rotation) to control placement and size.
+# target_channel selects which RGBA channel to write to.
+# blend_operation selects ADD (accumulate) or SUB (erase).
 
 @tool
-extends Node2D
+extends Sprite2D
 
-@export var effect_texture: Texture2D
-@export var effect_radius: float = 64.0
-@export var blend_mode: CanvasItemMaterial.BlendMode = CanvasItemMaterial.BLEND_MODE_ADD
+@export_enum("R:0", "G:1", "B:2", "A:3") var source_channel: int = 0
+@export_enum("R:0", "G:1", "B:2", "A:3") var target_channel: int = 0
+@export_enum("ADD:0", "SUB:1") var blend_operation: int = 0
 
 func _ready() -> void:
 	add_to_group("grass_effectors")
+	if not Engine.is_editor_hint():
+		visible = false

@@ -1,26 +1,16 @@
-[gd_resource type="ShaderMaterial" load_steps=8 format=3 uid="uid://t07xl7qay06s"]
+[gd_resource type="ShaderMaterial" load_steps=7 format=3 uid="uid://t07xl7qay06s"]
 
 [ext_resource type="Shader" uid="uid://c16p6csvftwt8" path="res://Shaders/2D/Grass2D.gdshader" id="1_shader"]
-[ext_resource type="Texture2D" uid="uid://casvwu72ipf4y" path="res://Textures and Materials/Cloud_Noise.tres" id="2_cloud"]
 [ext_resource type="Texture2D" uid="uid://cl033w2c2pdo7" path="res://Textures and Materials/leaves.png" id="3_leaves"]
 [ext_resource type="Texture2D" uid="uid://b6fhxncxd7b1t" path="res://Textures and Materials/WindNoise.tres" id="4_wind"]
 [ext_resource type="Texture2D" uid="uid://vqml4pj02ucs" path="res://Textures and Materials/Albedo2Noise.tres" id="5_albedo2"]
 [ext_resource type="Texture2D" uid="uid://c52v6tkx73uro" path="res://Textures and Materials/Albedo3Noise.tres" id="6_albedo3"]
 
-[sub_resource type="ViewportTexture" id="ViewportTexture_qq72d"]
-viewport_path = NodePath("GrassEffectManager2D/@SubViewport@28739")
+[sub_resource type="ViewportTexture" id="ViewportTexture_36vrn"]
+viewport_path = NodePath("GrassEffectManager2D/@SubViewport@22381")
 
 [resource]
 shader = ExtResource("1_shader")
-shader_parameter/cloud_shadows_enabled = true
-shader_parameter/cloud_noise = ExtResource("2_cloud")
-shader_parameter/cloud_scale = 2000.0
-shader_parameter/cloud_speed = 0.01
-shader_parameter/cloud_contrast = 3.845
-shader_parameter/cloud_threshold = 0.27
-shader_parameter/cloud_direction = Vector2(-1, 0)
-shader_parameter/cloud_shadow_min = 0.2
-shader_parameter/cloud_diverge_angle = 10.0
 shader_parameter/albedo_texture = ExtResource("3_leaves")
 shader_parameter/albedo_texture_region = Vector4(86, 23, 18, 18)
 shader_parameter/albedo1 = Color(0.85, 1, 0.47, 1)
@@ -53,14 +43,14 @@ shader_parameter/wind_sway_pixels = 5.0
 shader_parameter/fake_perspective_scale = 0.3
 shader_parameter/wind_noise = ExtResource("4_wind")
 shader_parameter/wind_noise_threshold = 0.2730000604675
-shader_parameter/wind_noise_scale = 0.046000002185
+shader_parameter/wind_noise_scale = 0.0290000013775
 shader_parameter/wind_noise_speed = 0.025
 shader_parameter/wind_noise_direction = Vector2(0, 1)
 shader_parameter/noise_diverge_angle = 7.5950003607625
 shader_parameter/displacement_enabled = true
 shader_parameter/debug_disable_mask = false
 shader_parameter/debug_disable_density = false
-shader_parameter/terrain_data_texture = SubResource("ViewportTexture_qq72d")
-shader_parameter/terrain_bounds = Vector4(-724.5, -411.5, 724.5, 411.5)
+shader_parameter/terrain_data_texture = SubResource("ViewportTexture_36vrn")
+shader_parameter/terrain_bounds = Vector4(-724.5, -559.5, 724.5, 559.5)
 shader_parameter/displacement_pixels = 12.0
 shader_parameter/displacement_y_factor = 0.3

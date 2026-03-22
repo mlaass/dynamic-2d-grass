@@ -12,8 +12,8 @@ script = ExtResource("1_script")
 [node name="Sprite2D" type="Sprite2D" parent="."]
 texture = ExtResource("2_crater")
 
-[node name="GrassEffector2D" type="Node2D" parent="."]
+[node name="GrassEffector2D" type="Sprite2D" parent="."]
 script = ExtResource("4_effector")
-effect_texture = ExtResource("3_mask")
-effect_radius = 24.0
-blend_mode = 2
+texture = ExtResource("3_mask")
+target_channel = 1
+blend_operation = 1

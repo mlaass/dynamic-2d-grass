@@ -2,9 +2,10 @@
 # Made by Dylearn
 
 # Manages a SubViewport that renders effector sprites and grass coverage
-# masks.  Each effector's blend_mode controls how it composites into the
-# viewport (ADD for displacement, SUB for destruction, etc.).
-# Grass mask meshes write to the G channel (coverage area).
+# masks.  Effectors use a channel-routing shader (blend_disabled +
+# screen_texture) for independent per-channel writes (R/G/B/A).
+# Coverage masks use blend_premul_alpha to write G=1 without touching A.
+# BackBufferCopy nodes between effectors ensure correct accumulation.
 # The viewport follows the game camera.
 
 @tool
@@ -16,13 +17,11 @@ extends Node
 @export var displacement_buffer: float = 128.0
 @export var grass_nav_layer: int = 0
 
-const DEFAULT_SPRITE_SIZE := 64
-
 var _viewport: SubViewport
 var _internal_cam: Camera2D
 var _mirror_sprites: Array[Dictionary] = []
-var _gradient_shader: Shader
-var _default_texture: PlaceholderTexture2D
+var _channel_shader: Shader
+var _mask_shader: Shader
 var _grass_material: ShaderMaterial
 var _viewport_resolution: Vector2i
 var _fixed_world_size: Vector2
@@ -61,10 +60,9 @@ func _ready() -> void:
   # Create mask MeshInstance2D pool (renders BEFORE effector sprites)
   _create_mask_pool()
 
-  # Default gradient shader + placeholder for effectors without a texture
-  _gradient_shader = load("res://Shaders/2D/displacement_gradient.gdshader")
-  _default_texture = PlaceholderTexture2D.new()
-  _default_texture.size = Vector2(DEFAULT_SPRITE_SIZE, DEFAULT_SPRITE_SIZE)
+  # Load channel-routing and mask shaders
+  _channel_shader = load("res://Shaders/2D/effector_channel.gdshader")
+  _mask_shader = load("res://Shaders/2D/mask_coverage.gdshader")
 
   # Defer effector discovery so all nodes have finished _ready() and joined groups
   await get_tree().process_frame
@@ -84,6 +82,12 @@ func _ready() -> void:
   _grass_material.set_shader_parameter("displacement_enabled", true)
 
 
+func get_terrain_texture() -> ViewportTexture:
+  if _viewport:
+    return _viewport.get_texture()
+  return null
+
+
 func _process(_delta: float) -> void:
   if not camera or not _internal_cam or not _grass_material:
     return
@@ -92,6 +96,7 @@ func _process(_delta: float) -> void:
   for i in range(_mirror_sprites.size() - 1, -1, -1):
     if not is_instance_valid(_mirror_sprites[i].source):
       _mirror_sprites[i].mirror.queue_free()
+      _mirror_sprites[i].bbc.queue_free()
       _mirror_sprites.remove_at(i)
 
   # Fixed world coverage — independent of game zoom to prevent texel grid flicker
@@ -114,46 +119,51 @@ func _process(_delta: float) -> void:
   # Update mask chunks to match active grass chunks
   _update_mask_chunks()
 
-  # Sync mirror sprite positions
+  # Sync mirror sprite transforms
   for entry in _mirror_sprites:
     var source: Node2D = entry.source
     var mirror: Sprite2D = entry.mirror
-    mirror.position = source.global_position
+    mirror.global_transform = source.global_transform
     mirror.modulate = source.modulate
-    if "effect_radius" in source:
-      var radius: float = source.effect_radius
-      _apply_scale(mirror, entry.tex_size, radius)
+    mirror.offset = source.offset
+    mirror.flip_h = source.flip_h
+    mirror.flip_v = source.flip_v
 
 
 # -- Effector sprites ------------------------------------------------------
 
 func _add_mirror(effector: Node) -> void:
+  var tex: Texture2D = effector.texture if "texture" in effector else null
+  if not tex:
+    push_warning("GrassEffector2D has no texture: ", effector.name)
+    return
+
+  var source_ch: int = effector.source_channel if "source_channel" in effector else 0
+  var target_ch: int = effector.target_channel if "target_channel" in effector else 0
+  var blend_op: int = effector.blend_operation if "blend_operation" in effector else 0
+
+  # BackBufferCopy so this effector reads the up-to-date framebuffer
+  var bbc := BackBufferCopy.new()
+  bbc.copy_mode = BackBufferCopy.COPY_MODE_VIEWPORT
+  _viewport.add_child(bbc)
+
+  # Mirror sprite with channel-routing shader
   var mirror := Sprite2D.new()
-  var tex: Texture2D = effector.effect_texture if "effect_texture" in effector else null
-  var tex_size: float
-  var mode: CanvasItemMaterial.BlendMode = effector.blend_mode \
-      if "blend_mode" in effector else CanvasItemMaterial.BLEND_MODE_ADD
-
-  if tex:
-    # Custom texture — use CanvasItemMaterial with the effector's blend mode
-    mirror.texture = tex
-    var mat := CanvasItemMaterial.new()
-    mat.blend_mode = mode
-    mirror.material = mat
-    tex_size = tex.get_size().x
-  else:
-    # No texture — use procedural gradient shader (has blend_add built in)
-    mirror.texture = _default_texture
-    var gradient_mat := ShaderMaterial.new()
-    gradient_mat.shader = _gradient_shader
-    mirror.material = gradient_mat
-    tex_size = DEFAULT_SPRITE_SIZE
-
-  mirror.position = effector.global_position
-  var radius: float = effector.effect_radius if "effect_radius" in effector else 64.0
-  _apply_scale(mirror, tex_size, radius)
+  mirror.texture = tex
+  var mat := ShaderMaterial.new()
+  mat.shader = _channel_shader
+  mat.set_shader_parameter("source_channel", source_ch)
+  mat.set_shader_parameter("target_channel", target_ch)
+  mat.set_shader_parameter("subtract_mode", blend_op == 1)
+  mirror.material = mat
+  mirror.centered = effector.centered
+  mirror.offset = effector.offset
+  mirror.flip_h = effector.flip_h
+  mirror.flip_v = effector.flip_v
+  mirror.global_transform = effector.global_transform
   _viewport.add_child(mirror)
-  _mirror_sprites.append({source = effector, mirror = mirror, tex_size = tex_size})
+
+  _mirror_sprites.append({source = effector, mirror = mirror, bbc = bbc})
 
 
 func _on_node_added(node: Node) -> void:
@@ -169,24 +179,27 @@ func _on_node_added(node: Node) -> void:
   ).call_deferred()
 
 
-func _apply_scale(mirror: Sprite2D, tex_size: float, radius: float) -> void:
-  mirror.scale = Vector2.ONE * radius / (tex_size / 2.0)
-
-
 # -- Grass mask pool -------------------------------------------------------
 
 func _create_mask_pool() -> void:
   if not chunk_manager or not "get_chunk_map" in chunk_manager:
     return
+  var mask_mat := ShaderMaterial.new()
+  mask_mat.shader = load("res://Shaders/2D/mask_coverage.gdshader")
   # Pool size matches the grass chunk pool
   var pool_count: int = chunk_manager.get_chunk_map().size()
   for i in pool_count:
     var mi := MeshInstance2D.new()
-    mi.modulate = Color(0, 1, 0, 1)
+    mi.material = mask_mat
     mi.visible = false
     _viewport.add_child(mi)
     _mask_pool.append(mi)
     _mask_pool_free.append(i)
+
+  # BackBufferCopy after all masks, before any effector sprites
+  var bbc := BackBufferCopy.new()
+  bbc.copy_mode = BackBufferCopy.COPY_MODE_VIEWPORT
+  _viewport.add_child(bbc)
 
 
 func _update_mask_chunks() -> void:

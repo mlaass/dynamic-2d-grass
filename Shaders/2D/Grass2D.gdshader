@@ -4,20 +4,6 @@
 
 shader_type canvas_item;
 
-// Cloud uniforms declared here as local uniforms for clouds2d.gdshaderinc
-group_uniforms clouds;
-uniform bool cloud_shadows_enabled = true; // Toggle cloud shadow effect
-uniform sampler2D cloud_noise : repeat_enable; // Noise for cloud simulation
-uniform float cloud_scale = 2000.0; // Scale of cloud noise (pixel-space — ~50x larger than 3D equivalent)
-uniform float cloud_speed = 0.01; // Speed of cloud movement (UV-space scroll rate, matches 3D)
-uniform float cloud_contrast = 3.845; // Steepness of noise pattern
-uniform float cloud_threshold = 0.27; // Brightness of noise pattern
-uniform vec2 cloud_direction = vec2(1.0, 0.0); // Direction of cloud movement
-uniform float cloud_shadow_min : hint_range(0.0, 1.0, 0.001) = 0.2; // Minimum light value clouds can cast
-uniform float cloud_diverge_angle : hint_range(0.0, 45.0, 0.001) = 10.0; // Angle at which the two noises split from each other
-
-#include "res://Shaders/2D/clouds2d.gdshaderinc"
-
 group_uniforms colours_and_textures;
 uniform sampler2D albedo_texture : source_color, filter_nearest; // Sprite for main grass quad
 uniform vec4 albedo_texture_region; // Atlas region (x, y, w, h) in pixels; (0,0,0,0) = full texture
@@ -94,6 +80,13 @@ vec2 atlas_uv(vec2 local_uv, vec4 region_px, sampler2D tex) {
 	if (region_px.z <= 0.0) return local_uv;
 	vec2 tex_size = vec2(textureSize(tex, 0));
 	return (region_px.xy + local_uv * region_px.zw) / tex_size;
+}
+
+vec2 rotate_vec2(vec2 vector, float angle) {
+	float angle_deg = angle * (PI / 180.0);
+	float rotated_x  = (vector.x * cos(angle_deg)) - (vector.y * sin(angle_deg));
+	float rotated_y  = (vector.x * sin(angle_deg)) + (vector.y * cos(angle_deg));
+	return vec2 (rotated_x, rotated_y);
 }
 
 void vertex() {
@@ -242,11 +235,6 @@ void fragment() {
 	}
 
 	COLOR = vec4(final_color, albedo_tex.a);
-
-	// Cloud shadows (2D adaptation — applied directly to COLOR)
-	if (cloud_shadows_enabled) {
-		COLOR.rgb *= get_cloud_noise_2d(world_origin);
-	}
 
 	// Debug noise mode
 	if (debug_noise) {

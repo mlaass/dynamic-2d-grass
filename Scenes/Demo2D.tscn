@@ -1,8 +1,10 @@
-[gd_scene load_steps=30 format=4 uid="uid://dqo58nw814e8p"]
+[gd_scene load_steps=34 format=4 uid="uid://dqo58nw814e8p"]
 
 [ext_resource type="Texture2D" uid="uid://tcw5u1705qth" path="res://Textures and Materials/Full.png" id="1_u52jf"]
 [ext_resource type="Script" uid="uid://br8jy7c25vg34" path="res://Scripts/2D/GrassChunkManager2D.gd" id="2_chunkmgr"]
+[ext_resource type="Texture2D" uid="uid://cfx5qy6p7jmj1" path="res://Textures and Materials/48x48 trees.png" id="8_p6d2n"]
 [ext_resource type="Texture2D" uid="uid://bkrkawwtxd2t" path="res://Textures and Materials/leaves_02_out.tres" id="9_gb8of"]
+[ext_resource type="Texture2D" uid="uid://c5jp01mgfdy5b" path="res://Textures and Materials/48x48 trees_offset_mask.png" id="9_p6d2n"]
 [ext_resource type="Texture2D" uid="uid://cha404mbace38" path="res://Textures and Materials/leaves_01_out.tres" id="10_gb8of"]
 [ext_resource type="Texture2D" uid="uid://c3yu4xphem086" path="res://Textures and Materials/char_ref.png" id="11_p6d2n"]
 [ext_resource type="Script" uid="uid://caltyux021wi6" path="res://Scripts/2D/GrassEffectManager2D.gd" id="12_dispmgr"]
@@ -10,6 +12,8 @@
 [ext_resource type="Texture2D" uid="uid://cynwdxmamfira" path="res://Textures and Materials/displace.png" id="14_gb8of"]
 [ext_resource type="Material" uid="uid://t07xl7qay06s" path="res://Textures and Materials/grass_2d_material.tres" id="15_grass2dmat"]
 [ext_resource type="Script" uid="uid://d3tpm5015yat0" path="res://Scripts/2D/ZeldaCamera2D.gd" id="16_zeldacam"]
+[ext_resource type="Script" uid="uid://fs3rrvguu0yv" path="res://Scripts/2D/CloudOverlay2D.gd" id="17_cloudoverlay"]
+[ext_resource type="Material" uid="uid://bd3xht7fe51c4" path="res://Textures and Materials/cloud_overlay_material.tres" id="18_cloudmat"]
 
 [sub_resource type="NavigationPolygon" id="NavigationPolygon_u52jf"]
 vertices = PackedVector2Array(8, -8, 8, -3.953125, 3.328125, -5.3984375, -8, -8, -2.7890625, -0.359375, -4.2265625, 8, -8, 8, -0.2734375, 4.140625)
@@ -441,7 +445,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 [node name="Camera2D" type="Camera2D" parent="." node_paths=PackedStringArray("target")]
 script = ExtResource("16_zeldacam")
-target = NodePath("../Sprite2D")
+target = NodePath("../Node2D/Mage")
 
 [node name="TileMapLayer" type="TileMapLayer" parent="."]
 z_index = -2
@@ -457,7 +461,54 @@ grass_material = ExtResource("15_grass2dmat")
 grass_texture = ExtResource("9_gb8of")
 accent_texture_1 = ExtResource("10_gb8of")
 accent_texture_2 = ExtResource("9_gb8of")
-debug_overlay = true
+
+[node name="Node2D" type="Node2D" parent="."]
+y_sort_enabled = true
+
+[node name="Trees" type="Sprite2D" parent="Node2D"]
+y_sort_enabled = true
+position = Vector2(457, 81)
+texture = ExtResource("8_p6d2n")
+offset = Vector2(0, -16)
+
+[node name="GrassEffector2D" type="Sprite2D" parent="Node2D/Trees"]
+visible = false
+texture = ExtResource("9_p6d2n")
+offset = Vector2(0, -16)
+script = ExtResource("13_displacer")
+source_channel = 2
+target_channel = 2
+
+[node name="GrassEffector2D2" type="Sprite2D" parent="Node2D/Trees"]
+visible = false
+modulate = Color(0.3, 0.3, 0.3, 1)
+texture = ExtResource("9_p6d2n")
+offset = Vector2(0, -16)
+script = ExtResource("13_displacer")
+source_channel = 2
+target_channel = 3
+
+[node name="Mage" type="Sprite2D" parent="Node2D"]
+y_sort_enabled = true
+position = Vector2(204, 137)
+texture = ExtResource("11_p6d2n")
+script = SubResource("GDScript_mover")
+
+[node name="GrassEffector2D2" type="Sprite2D" parent="Node2D/Mage"]
+visible = false
+z_index = -1
+texture_filter = 2
+position = Vector2(1.0000001, 9)
+scale = Vector2(2.465, 2.465)
+texture = ExtResource("14_gb8of")
+script = ExtResource("13_displacer")
+
+[node name="GrassEffector2D3" type="Sprite2D" parent="Node2D/Mage"]
+visible = false
+texture = ExtResource("11_p6d2n")
+script = ExtResource("13_displacer")
+source_channel = 2
+target_channel = 3
 
 [node name="GrassEffectManager2D" type="Node" parent="." node_paths=PackedStringArray("chunk_manager", "camera")]
 script = ExtResource("12_dispmgr")
@@ -465,13 +516,16 @@ chunk_manager = NodePath("../GrassChunkManager2D")
 camera = NodePath("../Camera2D")
 grass_nav_layer = 9
 
-[node name="Sprite2D" type="Sprite2D" parent="."]
-position = Vector2(204, 137)
-texture = ExtResource("11_p6d2n")
-script = SubResource("GDScript_mover")
+[node name="CloudOverlay" type="CanvasLayer" parent="."]
 
-[node name="GrassEffector2D" type="Node2D" parent="Sprite2D"]
-position = Vector2(0, 7)
-script = ExtResource("13_displacer")
-effect_texture = ExtResource("14_gb8of")
-effect_radius = 16.0
+[node name="CloudOverlay2D" type="ColorRect" parent="CloudOverlay" node_paths=PackedStringArray("camera", "effect_manager")]
+material = ExtResource("18_cloudmat")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("17_cloudoverlay")
+camera = NodePath("../../Camera2D")
+effect_manager = NodePath("../../GrassEffectManager2D")

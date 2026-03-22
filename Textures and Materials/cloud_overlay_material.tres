@@ -1,0 +1,39 @@
+[gd_resource type="ShaderMaterial" load_steps=7 format=3 uid="uid://bd3xht7fe51c4"]
+
+[ext_resource type="Shader" uid="uid://dsg8p2a3qxm5w" path="res://Shaders/2D/cloud_overlay.gdshader" id="1_shader"]
+[ext_resource type="Texture2D" uid="uid://casvwu72ipf4y" path="res://Textures and Materials/Cloud_Noise.tres" id="2_cloud"]
+[ext_resource type="Texture2D" uid="uid://b6fhxncxd7b1t" path="res://Textures and Materials/WindNoise.tres" id="3_l8o42"]
+
+[sub_resource type="Gradient" id="Gradient_d8uyc"]
+offsets = PackedFloat32Array(0, 0.2825279, 0.51301116, 0.78066915, 1)
+colors = PackedColorArray(0.03199998, 0.008000001, 0.08, 1, 0.290075, 0.25010002, 0.41, 1, 0.74423456, 0.6333161, 0.5352786, 1, 0.99, 0.91146004, 0.7128, 1, 1, 1, 1, 1)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_l8o42"]
+gradient = SubResource("Gradient_d8uyc")
+
+[sub_resource type="ViewportTexture" id="ViewportTexture_d8uyc"]
+viewport_path = NodePath("GrassEffectManager2D/@SubViewport@21023")
+
+[resource]
+shader = ExtResource("1_shader")
+shader_parameter/cloud_shadows_enabled = true
+shader_parameter/cloud_noise = ExtResource("2_cloud")
+shader_parameter/cloud_warp = ExtResource("3_l8o42")
+shader_parameter/cloud_warp_scale = -33.69999975711044
+shader_parameter/cloud_warp_freq = -0.01880000153442
+shader_parameter/cloud_color = SubResource("GradientTexture1D_l8o42")
+shader_parameter/cloud_scale = 2000.0
+shader_parameter/cloud_speed = 0.01
+shader_parameter/cloud_contrast = 3.845
+shader_parameter/cloud_threshold = 0.27
+shader_parameter/cloud_direction = Vector2(-1, 0)
+shader_parameter/cloud_shadow_min = 0.2
+shader_parameter/cloud_diverge_angle = 45.0
+shader_parameter/cloud_parallax = 1.2000001668934406
+shader_parameter/camera_position = Vector2(0, 0)
+shader_parameter/camera_zoom = Vector2(1, 1)
+shader_parameter/viewport_size = Vector2(986, 494)
+shader_parameter/debug_terrain = false
+shader_parameter/terrain_data_texture = SubResource("ViewportTexture_d8uyc")
+shader_parameter/terrain_bounds = Vector4(-129, -129, 129, 129)
+shader_parameter/cloud_y_offset_scale = 50.0
