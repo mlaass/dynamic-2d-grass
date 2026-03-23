@@ -84,13 +84,13 @@ void fragment() {
 		terrain_uv.y >= 0.0 && terrain_uv.y <= 1.0) {
 		terrain = texture(terrain_data_texture, terrain_uv);
 	}
-  
+
   vec4 grad = vec4(0.0);
 
 	if (debug_terrain) {
 		// Show raw terrain data: R=displacement, G=coverage, B=y-offset, A=immunity
 		// blend_mul will multiply with the scene, so output directly
-		COLOR = vec4(terrain.r, terrain.a, terrain.b , 1.0);
+		COLOR = vec4(terrain.r+terrain.a, terrain.g, terrain.b , 1.0);
 	} else {
 		float cloud_val = 1.0;
 		if (cloud_shadows_enabled) {
@@ -105,7 +105,7 @@ void fragment() {
 			// Get cloud shadow value and apply immunity
 			cloud_val = get_cloud_noise_2d(cloud_pos);
       cloud_val = mix(cloud_val, 1.0,terrain.a);
-      
+
 		}
     grad = texture(cloud_color, vec2(cloud_val));
 		COLOR = vec4(grad.rgb, 1.0);//;(1.0-cloud_val) *(1.0-terrain.a));

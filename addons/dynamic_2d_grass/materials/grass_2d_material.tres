@@ -1,10 +1,13 @@
-[gd_resource type="ShaderMaterial" load_steps=6 format=3 uid="uid://t07xl7qay06s"]
+[gd_resource type="ShaderMaterial" load_steps=7 format=3 uid="uid://t07xl7qay06s"]
 
 [ext_resource type="Shader" uid="uid://c16p6csvftwt8" path="res://addons/dynamic_2d_grass/shaders/Grass2D.gdshader" id="1_shader"]
 [ext_resource type="Texture2D" uid="uid://cl033w2c2pdo7" path="res://addons/dynamic_2d_grass/textures/leaves.png" id="3_leaves"]
 [ext_resource type="Texture2D" uid="uid://b6fhxncxd7b1t" path="res://addons/dynamic_2d_grass/noise/WindNoise.tres" id="4_wind"]
 [ext_resource type="Texture2D" uid="uid://vqml4pj02ucs" path="res://addons/dynamic_2d_grass/noise/Albedo2Noise.tres" id="5_albedo2"]
 [ext_resource type="Texture2D" uid="uid://c52v6tkx73uro" path="res://addons/dynamic_2d_grass/noise/Albedo3Noise.tres" id="6_albedo3"]
+
+[sub_resource type="ViewportTexture" id="ViewportTexture_ful12"]
+viewport_path = NodePath("GrassEffectManager2D/@SubViewport@26285")
 
 [resource]
 shader = ExtResource("1_shader")
@@ -47,6 +50,7 @@ shader_parameter/noise_diverge_angle = 7.5950003607625
 shader_parameter/displacement_enabled = true
 shader_parameter/debug_disable_mask = false
 shader_parameter/debug_disable_density = false
-shader_parameter/terrain_bounds = Vector4(-724.5, -559.5, 724.5, 559.5)
+shader_parameter/terrain_data_texture = SubResource("ViewportTexture_ful12")
+shader_parameter/terrain_bounds = Vector4(-812, -436.5, 812, 436.5)
 shader_parameter/displacement_pixels = 12.0
 shader_parameter/displacement_y_factor = 0.3
