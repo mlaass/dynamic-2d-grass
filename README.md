@@ -61,7 +61,7 @@ For per-tile grass coverage shapes (e.g. sloped edges, partial coverage), you ca
 
 1. Add a **Navigation Layer** to your TileSet
 2. Draw navigation polygons on individual tiles in the TileSet editor — these define the area where grass can grow within that tile
-3. Set the `grass_nav_layer` export on both `GrassChunkManager2D` and `GrassEffectManager2D` to match the navigation layer index you used
+3. Set the `grass_nav_layer` export on `GrassChunkManager2D` to match the navigation layer index you used
 
 If no navigation polygon is set on a tile, the full tile area is used.
 
@@ -87,7 +87,6 @@ Add a `GrassEffectManager2D` node and configure:
 | `chunk_manager` | Reference to your GrassChunkManager2D |
 | `camera` | Reference to your Camera2D |
 | `viewport_scale` | Resolution scale for the terrain data texture |
-| `grass_nav_layer` | Must match the value set on GrassChunkManager2D |
 
 ### 4. Add effectors
 

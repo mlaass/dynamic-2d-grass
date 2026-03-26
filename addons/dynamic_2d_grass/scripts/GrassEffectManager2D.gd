@@ -15,7 +15,6 @@ extends Node
 @export var camera: Camera2D
 @export_range(0.25, 1.0, 0.25) var viewport_scale: float = 1.0
 @export var displacement_buffer: float = 128.0
-@export var grass_nav_layer: int = 0
 
 var _viewport: SubViewport
 var _internal_cam: Camera2D

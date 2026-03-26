@@ -600,10 +600,6 @@ func _create_debug_overlay() -> void:
   _debug_canvas.add_child(_debug_control)
 
 
-func _debug_log(msg: String) -> void:
-  print("[GrassChunk] ", msg)
-
-
 func _debug_draw() -> void:
   var font: Font = ThemeDB.fallback_font
   var font_size := 13
