@@ -202,13 +202,20 @@ func _create_mask_pool() -> void:
 
 
 func _update_mask_chunks() -> void:
-  if not chunk_manager or not "get_active_chunk_keys" in chunk_manager:
+  if not chunk_manager or not "get_chunk_map" in chunk_manager:
     return
 
-  # Build set of currently active grass chunk keys
+  # Build set of currently active grass chunk keys.
+  # Editor preview renders every chunk as one combined MultiMesh (no pool),
+  # so keep every chunk's coverage mask active to match. At runtime, follow
+  # the camera-driven active set.
   var current_set: Dictionary = {}
-  for key in chunk_manager.get_active_chunk_keys():
-    current_set[key] = true
+  if Engine.is_editor_hint():
+    for key in chunk_manager.get_chunk_map().keys():
+      current_set[key] = true
+  else:
+    for key in chunk_manager.get_active_chunk_keys():
+      current_set[key] = true
 
   # Deactivate mask chunks no longer active
   for key in _mask_active.keys():
